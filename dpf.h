@@ -26,10 +26,9 @@ u256b add256b(u256b *x, u256b *y);
 u256b mul256b(u256b *x, u256b *y);
 */
 
+//DPF functions, PRG, GEN, and EVAL from libdpf
+
 void PRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2);
-
-
-//DPF functions
 
 void GEN(AES_KEY *key, uint128_t alpha, int n, unsigned char** k0, unsigned char **k1);
 

@@ -175,7 +175,7 @@ void GEN(AES_KEY *key, uint128_t alpha, int n, unsigned char** k0, unsigned char
 	if(shift & 1){
 		finalblock = dpf_left_shirt(finalblock, 1);
 	}
-	dpf_cb(finalblock);
+	//dpf_cb(finalblock);
 	finalblock = dpf_reverse_lsb(finalblock);
 
 	finalblock = dpf_xor(finalblock, s[maxlayer][0]);
@@ -301,7 +301,7 @@ void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
 
 //to generate a shared randomness to use as input to prf with counter
 int getSeed(block* seed){
-    return RAND_bytes(seed, 16);
+    return RAND_bytes((uint8_t*)seed, 16);
 }
 
 //client check inputs
@@ -318,13 +318,13 @@ void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, uint8
         
         //set newAlphaIndex
         //if the alpha number is bigger than than the corresponding power of 2, the alpha index will have been moved up
-        if(newAlphaIndex > (1<<(dblayers - i))){
-            newAlphaIndex -= 1<<(dblayers - i);
+        if(newAlphaIndex > (1<<(dbLayers - i))){
+            newAlphaIndex -= 1<<(dbLayers - i);
             bits[i] = 1;
         }
         
         //check if the halves will be swapped and set the entry of bits
-        PRF(key, seed, i, -1, whenToSwap);
+        PRF(key, seed, i, -1, &whenToSwap);
         bits[i] = bits[i] ^ ((uint128_t)whenToSwap % 2);
         
         
@@ -334,50 +334,50 @@ void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, uint8
     
 }
 
-//TODO: server check inputs
+//server check inputs
 void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vectors, block* outVectors){
     
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
 
     //don't modify vectors -- it should be treated as read-only, so make a copy
-    block* vectorsWorkSpace = malloc((1 << (dbLayers-1))*sizeof(block));
-    memset(vectorsWorkSpace, 0, (1 << (dbLayers-1))*sizeof(block));
+    block* vectorsWorkSpace = malloc(dbSize*sizeof(block));
+    memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(block));
     
-    //will use vectors as the input the first round to avoid needing to copy it,
-    //but subsequent rounds will read from vectorsWorkSpace
-    block* vectorPointer = vectors;
-    
-    block whenToSwap, leftSum, rightSum;
+    block prfOutput;
+    uint128_t leftSum, rightSum;
     int newDbSize = dbSize;
     
 
     for(int i = 0; i < dbLayers; i++){
         
-        //multiply each element by a ``random'' value and xor into the appropriate sum
+        leftSum = 0;
+        rightSum = 0;
+        
+        //multiply each element by a ``random'' value and add into the appropriate sum
         //add together left and right halves for next iteration
-        for(int j = 0; j < newDbSize; j++){            
-            if(j > (1<<(dblayers - i))){ //if j is in right half
-                rightSum = dpf_xor(rightSum, );
+        for(int j = 0; j < newDbSize; j++){
+            PRF(key, seed, i, j, &prfOutput);         
+            if(j >= (1<<(dbLayers - i))){ //if j is in right half
+                rightSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
+                vectorsWorkSpace[j - (1<<(dbLayers - i))] += vectorsWorkSpace[j];
             }
             else{ // j is in left half
-                
+                leftSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
             }
-            
-            //vectorsWorkSpace[j] = vectorPointer[j]  ;
         }
-        vectorPointer = vectorsWorkSpace;
+        
         //adjust newDbSize for next round
         newDbSize = 1 << (dbLayers - (i+1));
                 
         //check if the halves will be swapped and place the sums in the appropriate spots
-        PRF(key, seed, i, -1, whenToSwap);
-        if((uint128_t)whenToSwap % 2 == 0){
-            memcpy(&outVectors[2*j], leftSum, 16);
-            memcpy(&outVectors[2*j+1], rightSum, 16);
+        PRF(key, seed, i, -1, &prfOutput);
+        if((uint128_t)prfOutput % 2 == 0){
+            memcpy(&outVectors[2*i], &leftSum, 16);
+            memcpy(&outVectors[2*i+1], &rightSum, 16);
         }
         else{
-            memcpy(&outVectors[2*j], rightSum, 16);
-            memcpy(&outVectors[2*j+1], leftSum, 16);
+            memcpy(&outVectors[2*i], &rightSum, 16);
+            memcpy(&outVectors[2*i+1], &leftSum, 16);
         }
     }
     
@@ -388,20 +388,42 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
+    uint128_t mergeAB[2], mergeBA[2];
     
     for(int i = 0; i < dbLayers; i++){
         
         //merge the output vectors to get the values
-        //putting the merged values into outVectorsA
-        outVectorsA[2*i] = dpf_xor(outVectorsA[2*i], outVectorsB[2*i]);
-        outVectorsA[2*i+1] = dpf_xor(outVectorsA[2*i+1], outVectorsB[2*i+1]);
+        //use subtraction in both directions instead of dpf_xor
+        //to make sure one of them is the correct nonZero value
+        mergeAB[0] = (uint128_t)outVectorsA[2*i] - (uint128_t)outVectorsB[2*i];
+        mergeAB[1] = (uint128_t)outVectorsA[2*i+1] - (uint128_t)outVectorsB[2*i+1];
+        mergeBA[0] = (uint128_t)outVectorsB[2*i] - (uint128_t)outVectorsA[2*i];
+        mergeBA[1] = (uint128_t)outVectorsB[2*i+1] - (uint128_t)outVectorsA[2*i+1];
         
-        //check that the appropriate side is 0
-        //check that the non-zero side matches expected nonZero value
-        if(memcmp(outVectorsA[2*i+(1-bits[i])], &zero, 16) != 0 ||
-            memcmp(outVectorsA[2*i+bits[i]], &nonZeroVectors[i], 16) != 0) {
+        //first check that the appropriate side is 0
+        //only need to check AB since if it is 0 then so is BA
+        //then check that the other side is equal to the corresponding nonZeroVectors entry
+        //for at least one direction of subtraction
+        if( memcmp(&mergeAB[1-bits[i]], &zero, 16) != 0 || (
+            memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0 &&
+            memcmp(&mergeBA[bits[i]], &nonZeroVectors[i], 16) != 0
+        )){
             pass = 0;
         }
+        
+        //old version below
+        //can't just use xor because the mults may have cause overflows and messed stuff up
+        
+        //merge the output vectors to get the values
+        //putting the merged values into outVectorsA
+        //outVectorsA[2*i] = dpf_xor(outVectorsA[2*i], outVectorsB[2*i]);
+        //outVectorsA[2*i+1] = dpf_xor(outVectorsA[2*i+1], outVectorsB[2*i+1]);
+        //check that the appropriate side is 0
+        //check that the non-zero side matches expected nonZero value
+        //if(memcmp(outVectorsA[2*i+(1-bits[i])], &zero, 16) != 0 ||
+        //    memcmp(outVectorsA[2*i+bits[i]], &nonZeroVectors[i], 16) != 0) {
+        //    pass = 0;
+        //}
         
     }
     
@@ -436,19 +458,26 @@ int main(){
     
 	res1 = EVAL(&key, k0, 0);
 	res2 = EVAL(&key, k1, 0);
-	dpf_cb(res1);
-	dpf_cb(res2);
+	//dpf_cb(res1);
+	//dpf_cb(res2);
     block out = dpf_xor(res1, res2);
-    printf("result is value %d\n", interpret_result(out));
+    printf("result evaluated at 0 is value %d\n", interpret_result(out));
 	//dpf_cb(dpf_xor(res1, res2));
 
 	res1 = EVAL(&key, k0, 26943);
 	res2 = EVAL(&key, k1, 26943);
-	dpf_cb(res1);
-	dpf_cb(res2);
+	//dpf_cb(res1);
+	//dpf_cb(res2);
     out = dpf_xor(res1, res2);
-    printf("result is value %d\n", interpret_result(out));
+    printf("result evaluated at 26943 is value %d\n", interpret_result(out));
 	//dpf_cb(dpf_xor(res1, res2));
+    
+    
+    //now we'll do a simple functionality test of the dpf checking.
+    //this will in no way be rigorous or even representative of the
+    //usual use case since all the evaluation points are small
+    
+    
 
 	return 0;
 }
