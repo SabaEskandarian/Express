@@ -1,4 +1,5 @@
 #include "dpf.h"
+#include <openssl/rand.h>
 
 block dpf_reverse_lsb(block input){
 	static long long b1 = 0;
@@ -16,6 +17,51 @@ block dpf_set_lsb_zero(block input){
 		return input;
 	}
 }
+
+/*
+ * Not clear we need this
+//these functions taken from
+//https://locklessinc.com/articles/256bit_arithmetic/
+//they saw naive multiplication was faster than karatsuba for this
+//for an older version of gcc, they got a >2x improvement by writing the multiplication in assembly
+//so maybe we want to switch to assembly later if that ends up being a bottleneck
+u256b add256b(u256b *x, u256b *y)
+{
+	u128b lo = (u128b) x->lo + y->lo;
+	u128b mid = (u128b) x->mid + y->mid + (lo >> 64);
+	u256b result =
+	{
+		.lo = lo,
+		.mid = mid,
+		.hi = x->hi + y->hi + (mid >> 64),
+	};
+	
+	return result;
+}
+
+u256b mul256b(u256b *x, u256b *y)
+{
+	u128b t1 = (u128b) x->lo * y->lo;
+	u128b t2 = (u128b) x->lo * y->mid;
+	u128b t3 = x->lo * y->hi;
+	u128b t4 = (u128b) x->mid * y->lo;
+	u128b t5 = (u128b) x->mid * y->mid;
+	u64b t6 = x->mid * y->hi;
+	u128b t7 = x->hi * y->lo;
+	u64b t8 = x->hi * y->mid;
+
+	u64b lo = t1;
+	u128b m1 = (t1 >> 64) + (u64b)t2;
+	u64b m2 = m1;
+	u128b mid = (u128b) m2 + (u64b)t4;
+	u128b hi = (t2 >> 64) + t3 + (t4 >> 64) + t5 + ((u128b) t6 << 64) + t7
+		 + ((u128b) t8 << 64) + (m1 >> 64) + (mid >> 64);
+	
+	u256b result = {lo, mid, hi};
+	
+	return result;
+}
+*/
 
 void PRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2){
 	input = dpf_set_lsb_zero(input);
@@ -36,21 +82,6 @@ void PRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, i
 	*output1 = dpf_set_lsb_zero(stash[0]);
 	*output2 = dpf_set_lsb_zero(stash[1]);
 }
-
-/*
- * TODO: finish/fix this and maybe move to appropriate header file
- * 
-void PRG_SINGLE(AES_KEY *key, block input, block* output){
-
-	block stash* = input;
-
-	AES_ecb_encrypt_blks(stash, 1, key);
-
-	stash = dpf_xor(stash[0], input);
-
-	*output = dpf_set_lsb_zero(stash);
-}
-*/
 
 static int getbit(uint128_t x, int n, int b){
 	return ((uint128_t)(x) >> (n - b)) & 1;
@@ -241,6 +272,140 @@ block EVAL(AES_KEY *key, unsigned char* k, uint128_t x){
 //helper function to get the result as a 1/0 int
 uint8_t interpret_result(block val){
     return ((uint8_t*)(&val))[7] >> 7;
+}
+
+//use the correllated randomness so that servers and user pick same randomness
+//untested function
+//void PRF(AES_KEY *key, block input, block* output){
+void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
+
+    block input = seed;
+    
+    //xor count with 32 bits of input and layer with next 32 bits. 
+    //count = -1 is for determining whether to swap or not when shuffling halves
+    // if output mod 2 == 1, then user/servers will swap
+    int* temp; //= malloc(sizeof(int));
+    temp = (int*)&input;
+    temp[0] = temp[0] ^ count;
+    temp[1] = temp[1] ^ layer;
+
+	block stash = input;
+
+	AES_ecb_encrypt_blks(&stash, 1, key);
+
+	stash = dpf_xor(stash, input);
+
+	*output = stash;
+    free(temp);
+}
+
+//to generate a shared randomness to use as input to prf with counter
+int getSeed(block* seed){
+    return RAND_bytes(seed, 16);
+}
+
+//client check inputs
+//void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, int dbSize, uint8_t* bits, block* nonZeroVectors){
+void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, uint8_t* bits, block* nonZeroVectors){
+    
+    block whenToSwap;
+    uint128_t newAlphaIndex = alpha;
+    
+    //set bits vector to all zeros
+    memset(bits, 0, dbLayers);
+    
+    for(int i = 0; i < dbLayers; i++){
+        
+        //set newAlphaIndex
+        //if the alpha number is bigger than than the corresponding power of 2, the alpha index will have been moved up
+        if(newAlphaIndex > (1<<(dblayers - i))){
+            newAlphaIndex -= 1<<(dblayers - i);
+            bits[i] = 1;
+        }
+        
+        //check if the halves will be swapped and set the entry of bits
+        PRF(key, seed, i, -1, whenToSwap);
+        bits[i] = bits[i] ^ ((uint128_t)whenToSwap % 2);
+        
+        
+        //check the mask value for newAlphaIndex and set entry of nonZeroVectors
+        PRF(key, seed, i, newAlphaIndex, &nonZeroVectors[i]);        
+    }
+    
+}
+
+//TODO: server check inputs
+void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vectors, block* outVectors){
+    
+    //outVectors should be of length 2*dbLayers since there are 2 sums per layer
+
+    //don't modify vectors -- it should be treated as read-only, so make a copy
+    block* vectorsWorkSpace = malloc((1 << (dbLayers-1))*sizeof(block));
+    memset(vectorsWorkSpace, 0, (1 << (dbLayers-1))*sizeof(block));
+    
+    //will use vectors as the input the first round to avoid needing to copy it,
+    //but subsequent rounds will read from vectorsWorkSpace
+    block* vectorPointer = vectors;
+    
+    block whenToSwap, leftSum, rightSum;
+    int newDbSize = dbSize;
+    
+
+    for(int i = 0; i < dbLayers; i++){
+        
+        //multiply each element by a ``random'' value and xor into the appropriate sum
+        //add together left and right halves for next iteration
+        for(int j = 0; j < newDbSize; j++){            
+            if(j > (1<<(dblayers - i))){ //if j is in right half
+                rightSum = dpf_xor(rightSum, );
+            }
+            else{ // j is in left half
+                
+            }
+            
+            //vectorsWorkSpace[j] = vectorPointer[j]  ;
+        }
+        vectorPointer = vectorsWorkSpace;
+        //adjust newDbSize for next round
+        newDbSize = 1 << (dbLayers - (i+1));
+                
+        //check if the halves will be swapped and place the sums in the appropriate spots
+        PRF(key, seed, i, -1, whenToSwap);
+        if((uint128_t)whenToSwap % 2 == 0){
+            memcpy(&outVectors[2*j], leftSum, 16);
+            memcpy(&outVectors[2*j+1], rightSum, 16);
+        }
+        else{
+            memcpy(&outVectors[2*j], rightSum, 16);
+            memcpy(&outVectors[2*j+1], leftSum, 16);
+        }
+    }
+    
+}
+
+//auditor functionality
+int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* outVectorsA, block* outVectorsB){
+    
+    int pass = 1; //set this to 0 if any check fails
+    uint128_t zero = 0;
+    
+    for(int i = 0; i < dbLayers; i++){
+        
+        //merge the output vectors to get the values
+        //putting the merged values into outVectorsA
+        outVectorsA[2*i] = dpf_xor(outVectorsA[2*i], outVectorsB[2*i]);
+        outVectorsA[2*i+1] = dpf_xor(outVectorsA[2*i+1], outVectorsB[2*i+1]);
+        
+        //check that the appropriate side is 0
+        //check that the non-zero side matches expected nonZero value
+        if(memcmp(outVectorsA[2*i+(1-bits[i])], &zero, 16) != 0 ||
+            memcmp(outVectorsA[2*i+bits[i]], &nonZeroVectors[i], 16) != 0) {
+            pass = 0;
+        }
+        
+    }
+    
+    return pass;
 }
 
 int main(){

@@ -1,1 +1,1 @@
-gcc -maes -lcrypto aes.h block.h block.c utils.c
+gcc -maes -lcrypto aes.h block.h block.c dpf.h dpf.c
