@@ -1,5 +1,6 @@
 #include "dpf.h"
 #include <openssl/rand.h>
+#include <omp.h>
 
 block dpf_reverse_lsb(block input){
 	static long long b1 = 0;
@@ -268,12 +269,6 @@ block EVAL(AES_KEY *key, unsigned char* k, uint128_t x){
 	return res;
 }
 
-
-//helper function to get the result as a 1/0 int
-uint8_t interpret_result(block val){
-    return ((uint8_t*)(&val))[7] >> 7;
-}
-
 //use the correllated randomness so that servers and user pick same randomness
 //untested function
 //void PRF(AES_KEY *key, block input, block* output){
@@ -284,7 +279,7 @@ void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
     //xor count with 32 bits of input and layer with next 32 bits. 
     //count = -1 is for determining whether to swap or not when shuffling halves
     // if output mod 2 == 1, then user/servers will swap
-    int* temp; //= malloc(sizeof(int));
+    int* temp; 
     temp = (int*)&input;
     temp[0] = temp[0] ^ count;
     temp[1] = temp[1] ^ layer;
@@ -296,7 +291,6 @@ void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
 	stash = dpf_xor(stash, input);
 
 	*output = stash;
-    free(temp);
 }
 
 //to generate a shared randomness to use as input to prf with counter
@@ -306,30 +300,37 @@ int getSeed(block* seed){
 
 //client check inputs
 //void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, int dbSize, uint8_t* bits, block* nonZeroVectors){
-void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, uint8_t* bits, block* nonZeroVectors){
+void clientVerify(AES_KEY *key, block seed, int index, int dbLayers, uint8_t* bits, block* nonZeroVectors){
+    
+    //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
     
     block whenToSwap;
-    uint128_t newAlphaIndex = alpha;
+    int newIndex;
+    int oldIndex;
     
     //set bits vector to all zeros
     memset(bits, 0, dbLayers);
     
+    #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
-        
+
         //set newAlphaIndex
-        //if the alpha number is bigger than than the corresponding power of 2, the alpha index will have been moved up
-        if(newAlphaIndex > (1<<(dbLayers - i))){
-            newAlphaIndex -= 1<<(dbLayers - i);
+        oldIndex = index % (1<<(dbLayers - i));
+        newIndex = index % (1<<(dbLayers - i - 1));
+
+        //if the index has changed, then the nonzero value was in the second half
+        if(newIndex != oldIndex){
             bits[i] = 1;
         }
-        
+
         //check if the halves will be swapped and set the entry of bits
         PRF(key, seed, i, -1, &whenToSwap);
+
         bits[i] = bits[i] ^ ((uint128_t)whenToSwap % 2);
+
         
-        
-        //check the mask value for newAlphaIndex and set entry of nonZeroVectors
-        PRF(key, seed, i, newAlphaIndex, &nonZeroVectors[i]);        
+        //check the mask value and set entry of nonZeroVectors
+        PRF(key, seed, i, oldIndex, &nonZeroVectors[i]);    
     }
     
 }
@@ -354,16 +355,24 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
         rightSum = 0;
         
         //multiply each element by a ``random'' value and add into the appropriate sum
-        //add together left and right halves for next iteration
+        #pragma omp parallel for \
+          default(shared) private(prfOutput) \
+          reduction(+:rightSum,leftSum)
         for(int j = 0; j < newDbSize; j++){
             PRF(key, seed, i, j, &prfOutput);         
-            if(j >= (1<<(dbLayers - i))){ //if j is in right half
+            if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
                 rightSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
-                vectorsWorkSpace[j - (1<<(dbLayers - i))] += vectorsWorkSpace[j];
+                dpf_cb((block)rightSum);
             }
             else{ // j is in left half
                 leftSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
             }
+        }
+        
+        //add together left and right halves for next iteration
+        #pragma omp parallel for
+        for(int j = 1<<(dbLayers - i - 1); j < newDbSize; j++){
+            vectorsWorkSpace[j - (1<<(dbLayers - i - 1))] += vectorsWorkSpace[j];
         }
         
         //adjust newDbSize for next round
@@ -380,7 +389,7 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
             memcpy(&outVectors[2*i+1], &leftSum, 16);
         }
     }
-    
+    free(vectorsWorkSpace);
 }
 
 //auditor functionality
@@ -390,6 +399,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     uint128_t zero = 0;
     uint128_t mergeAB[2], mergeBA[2];
     
+    #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
         
         //merge the output vectors to get the values
@@ -400,6 +410,8 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
         mergeBA[0] = (uint128_t)outVectorsB[2*i] - (uint128_t)outVectorsA[2*i];
         mergeBA[1] = (uint128_t)outVectorsB[2*i+1] - (uint128_t)outVectorsA[2*i+1];
         
+        //printf("%d %lu, %lu, %lu, %lu\n", i, outVectorsA[2*i], outVectorsA[2*i+1], outVectorsB[2*i], outVectorsB[2*i+1]);
+        
         //first check that the appropriate side is 0
         //only need to check AB since if it is 0 then so is BA
         //then check that the other side is equal to the corresponding nonZeroVectors entry
@@ -408,6 +420,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
             memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0 &&
             memcmp(&mergeBA[bits[i]], &nonZeroVectors[i], 16) != 0
         )){
+            //printf("fail conditions %d %lu %lu %lu %lu\n", i, mergeAB[0], mergeAB[1], mergeBA[0], mergeBA[1]);
             pass = 0;
         }
         
@@ -428,6 +441,13 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     }
     
     return pass;
+}
+
+void print_block_array(block* content, int length){
+    for(int i = 0; i < length; i++){
+        printf("entry %d: ", i);
+        dpf_cb(content[i]);
+    }
 }
 
 int main(){
@@ -460,24 +480,70 @@ int main(){
 	res2 = EVAL(&key, k1, 0);
 	//dpf_cb(res1);
 	//dpf_cb(res2);
-    block out = dpf_xor(res1, res2);
-    printf("result evaluated at 0 is value %d\n", interpret_result(out));
-	//dpf_cb(dpf_xor(res1, res2));
+    printf("\nresult evaluated at 0: ");
+	dpf_cb(dpf_xor(res1, res2));
 
 	res1 = EVAL(&key, k0, 26943);
 	res2 = EVAL(&key, k1, 26943);
 	//dpf_cb(res1);
 	//dpf_cb(res2);
-    out = dpf_xor(res1, res2);
-    printf("result evaluated at 26943 is value %d\n", interpret_result(out));
-	//dpf_cb(dpf_xor(res1, res2));
+    printf("\nresult evaluated at 26943: ");
+	dpf_cb(dpf_xor(res1, res2));
     
     
     //now we'll do a simple functionality test of the dpf checking.
     //this will in no way be rigorous or even representative of the
     //usual use case since all the evaluation points are small
+    //just a sanity check before moving on to the obliv key val stuff 
     
+    uint128_t db[] = {43423, 232132, 8647, 43, 26943, 5346643};
+    int dbSize = 6;
+    int dbLayers = 3;
+    block* seed = malloc(sizeof(block));
+    if(!getSeed(seed)){
+        printf("couldn't get seed\n");
+        return 1;
+    }
     
+    //allocate the various arrays we will need
+    uint8_t* bits = malloc(dbLayers);
+    block* nonZeroVectors = malloc(sizeof(block)*dbLayers);
+    block* vectorsA = malloc(sizeof(block)*dbSize);
+    block* vectorsB = malloc(sizeof(block)*dbSize);
+    block* outVectorsA = malloc(sizeof(block)*2*dbLayers);
+    block* outVectorsB = malloc(sizeof(block)*2*dbLayers);
+    
+    //evaluate the db at each point for each server
+    #pragma omp parallel for
+    for(int i = 0; i < dbSize; i++){
+        block res1, res2;
+        res1 = EVAL(&key, k0, db[i]);
+        res2 = EVAL(&key, k1, db[i]);
+        memcpy(&vectorsA[i], &res1, 16);
+        memcpy(&vectorsB[i], &res2, 16);
+    }
+    
+    //run the dpf verification functions
+    clientVerify(&key, *seed, 4, dbLayers, bits, nonZeroVectors);
 
+    serverVerify(&key, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
+    serverVerify(&key, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
+    printf("DPF outputs for server A\n");
+    print_block_array(vectorsA, 6);
+    printf("check outputs for server A\n");
+    print_block_array(outVectorsA, 6);
+    printf("DPF outputs for server B\n");
+    print_block_array(vectorsB, 6);
+    printf("check outputs for server B\n");
+    print_block_array(outVectorsB, 6);
+    printf("expected nonzero outputs from user\n");
+    print_block_array(nonZeroVectors, 3);
+    printf("bits: %x %x %x\n", bits[0], bits[1], bits[2]);
+    
+    int pass = -1;
+    pass = auditorVerify(dbLayers, bits, nonZeroVectors, outVectorsA, outVectorsB);
+    
+    printf("dpf check verification: %d\n", pass);
+    
 	return 0;
 }

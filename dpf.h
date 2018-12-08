@@ -44,7 +44,7 @@ int getSeed(block* seed);
 void PRF(AES_KEY *key, block seed, int layer, int count, block* output);
 
 //client check inputs
-void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, uint8_t* bits, block* nonZeroVectors);
+void clientVerify(AES_KEY *key, block seed, int index, int dbLayers, uint8_t* bits, block* nonZeroVectors);
 
 //server check inputs
 void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vectors, block* outVectors);

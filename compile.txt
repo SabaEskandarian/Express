@@ -1,1 +1,1 @@
-gcc -maes -lcrypto aes.h block.h block.c dpf.h dpf.c
+gcc -fopenmp -maes -lcrypto aes.h block.h block.c dpf.h dpf.c okv.c okv.h
