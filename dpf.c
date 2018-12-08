@@ -460,6 +460,11 @@ void print_block_array(block* content, int length){
 
 int main(){
     
+    //noting here that I think there may be an issue with the libdpf evaluation for small values
+    //I saw some strange behavior for inputs <128
+    //this will pretty much never be an issue for our application since it's extremely unlikely
+    //to have such an input, but maybe something to look into if there is time or we write our own version
+    
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
 
