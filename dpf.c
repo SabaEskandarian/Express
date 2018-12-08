@@ -304,15 +304,14 @@ void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShar
     
     //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
     
-    block whenToSwap;
-    int newIndex;
-    int oldIndex;
-    
     //set bits vector to all zeros
     memset(bits, 0, dbLayers);
     
     #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
+        block whenToSwap;
+        int newIndex;
+        int oldIndex;
 
         //set newAlphaIndex
         oldIndex = index % (1<<(dbLayers - i));
@@ -404,10 +403,10 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
-    uint128_t mergeAB[2];//, mergeBA[2];
     
     #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
+        uint128_t mergeAB[2];
         
         //merge the output vectors to get the values
         //use subtraction in both directions instead of dpf_xor
@@ -431,20 +430,6 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
             
             pass = 0;
         }
-        
-        //old version below
-        //can't just use xor because the mults may have cause overflows and messed stuff up
-        
-        //merge the output vectors to get the values
-        //putting the merged values into outVectorsA
-        //outVectorsA[2*i] = dpf_xor(outVectorsA[2*i], outVectorsB[2*i]);
-        //outVectorsA[2*i+1] = dpf_xor(outVectorsA[2*i+1], outVectorsB[2*i+1]);
-        //check that the appropriate side is 0
-        //check that the non-zero side matches expected nonZero value
-        //if(memcmp(outVectorsA[2*i+(1-bits[i])], &zero, 16) != 0 ||
-        //    memcmp(outVectorsA[2*i+bits[i]], &nonZeroVectors[i], 16) != 0) {
-        //    pass = 0;
-        //}
         
     }
     
