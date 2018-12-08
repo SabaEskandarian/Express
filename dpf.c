@@ -300,7 +300,7 @@ int getSeed(block* seed){
 
 //client check inputs
 //void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, int dbSize, uint8_t* bits, block* nonZeroVectors){
-void clientVerify(AES_KEY *key, block seed, int index, int dbLayers, uint8_t* bits, block* nonZeroVectors){
+void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShare, int dbLayers, uint8_t* bits, block* nonZeroVectors){
     
     //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
     
@@ -327,10 +327,15 @@ void clientVerify(AES_KEY *key, block seed, int index, int dbLayers, uint8_t* bi
         PRF(key, seed, i, -1, &whenToSwap);
 
         bits[i] = bits[i] ^ ((uint128_t)whenToSwap % 2);
-
         
+        block temp;
+        uint128_t temp2;
         //check the mask value and set entry of nonZeroVectors
-        PRF(key, seed, i, oldIndex, &nonZeroVectors[i]);    
+        //PRF(key, seed, i, oldIndex, &nonZeroVectors[i]);
+        PRF(key, seed, i, oldIndex, &temp);
+        temp2 = (uint128_t)aShare*(uint128_t)temp - (uint128_t)bShare*(uint128_t)temp;
+        memcpy(&nonZeroVectors[i], &temp2, 16);
+        
     }
     
 }
@@ -362,7 +367,9 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
             PRF(key, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
                 rightSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
-                dpf_cb((block)rightSum);
+                //dpf_cb(prfOutput);
+                //dpf_cb(vectorsWorkSpace[j]);
+                //dpf_cb((block)rightSum);
             }
             else{ // j is in left half
                 leftSum += (uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput;
@@ -397,7 +404,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
-    uint128_t mergeAB[2], mergeBA[2];
+    uint128_t mergeAB[2];//, mergeBA[2];
     
     #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
@@ -407,8 +414,8 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
         //to make sure one of them is the correct nonZero value
         mergeAB[0] = (uint128_t)outVectorsA[2*i] - (uint128_t)outVectorsB[2*i];
         mergeAB[1] = (uint128_t)outVectorsA[2*i+1] - (uint128_t)outVectorsB[2*i+1];
-        mergeBA[0] = (uint128_t)outVectorsB[2*i] - (uint128_t)outVectorsA[2*i];
-        mergeBA[1] = (uint128_t)outVectorsB[2*i+1] - (uint128_t)outVectorsA[2*i+1];
+        //mergeBA[0] = (uint128_t)outVectorsB[2*i] - (uint128_t)outVectorsA[2*i];
+        //mergeBA[1] = (uint128_t)outVectorsB[2*i+1] - (uint128_t)outVectorsA[2*i+1];
         
         //printf("%d %lu, %lu, %lu, %lu\n", i, outVectorsA[2*i], outVectorsA[2*i+1], outVectorsB[2*i], outVectorsB[2*i+1]);
         
@@ -417,10 +424,11 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
         //then check that the other side is equal to the corresponding nonZeroVectors entry
         //for at least one direction of subtraction
         if( memcmp(&mergeAB[1-bits[i]], &zero, 16) != 0 || (
-            memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0 &&
-            memcmp(&mergeBA[bits[i]], &nonZeroVectors[i], 16) != 0
+            memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0 //&&
+            //memcmp(&mergeBA[bits[i]], &nonZeroVectors[i], 16) != 0
         )){
-            //printf("fail conditions %d %lu %lu %lu %lu\n", i, mergeAB[0], mergeAB[1], mergeBA[0], mergeBA[1]);
+            printf("fail conditions in round %d: %d %d \n", i, memcmp(&mergeAB[1-bits[i]], &zero, 16), memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16));
+            
             pass = 0;
         }
         
@@ -470,7 +478,7 @@ int main(){
 
     //can only test with smaller constants because
     //gcc does not support 128 bit constants
-	GEN(&key, 26943, 128, &k0, &k1);
+	GEN(&key, 300, 128, &k0, &k1);
 	
     //evaluate dpf
 	block res1;
@@ -483,11 +491,11 @@ int main(){
     printf("\nresult evaluated at 0: ");
 	dpf_cb(dpf_xor(res1, res2));
 
-	res1 = EVAL(&key, k0, 26943);
-	res2 = EVAL(&key, k1, 26943);
+	res1 = EVAL(&key, k0, 300);
+	res2 = EVAL(&key, k1, 300);
 	//dpf_cb(res1);
 	//dpf_cb(res2);
-    printf("\nresult evaluated at 26943: ");
+    printf("\nresult evaluated at 300: ");
 	dpf_cb(dpf_xor(res1, res2));
     
     
@@ -496,7 +504,7 @@ int main(){
     //usual use case since all the evaluation points are small
     //just a sanity check before moving on to the obliv key val stuff 
     
-    uint128_t db[] = {43423, 232132, 8647, 43, 26943, 5346643};
+    uint128_t db[] = {4343423, 232132, 465437, 43, 300, 5346643};
     int dbSize = 6;
     int dbLayers = 3;
     block* seed = malloc(sizeof(block));
@@ -524,10 +532,12 @@ int main(){
     }
     
     //run the dpf verification functions
-    clientVerify(&key, *seed, 4, dbLayers, bits, nonZeroVectors);
+    clientVerify(&key, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, nonZeroVectors);
 
     serverVerify(&key, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
     serverVerify(&key, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
+    
+    /*
     printf("DPF outputs for server A\n");
     print_block_array(vectorsA, 6);
     printf("check outputs for server A\n");
@@ -539,8 +549,13 @@ int main(){
     printf("expected nonzero outputs from user\n");
     print_block_array(nonZeroVectors, 3);
     printf("bits: %x %x %x\n", bits[0], bits[1], bits[2]);
+    */
     
     int pass = -1;
+    
+    //tamper with dpf outputs to see if auditor catches it
+    //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
+    
     pass = auditorVerify(dbLayers, bits, nonZeroVectors, outVectorsA, outVectorsB);
     
     printf("dpf check verification: %d\n", pass);
