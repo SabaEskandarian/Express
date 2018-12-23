@@ -28,13 +28,11 @@ u256b mul256b(u256b *x, u256b *y);
 
 //DPF functions, PRG, GEN, and EVAL from libdpf
 
-void PRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2);
+void dpfPRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2);
 
-void GEN(AES_KEY *key, uint128_t alpha, int n, unsigned char** k0, unsigned char **k1);
+void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1);
 
-block EVAL(AES_KEY *key, unsigned char* k, uint128_t x);
-
-uint8_t interpret_result(block val);
+block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t** dataShare);
 
 //DPF checking functions
 //written assuming 128 bit dpf domain
