@@ -32,7 +32,7 @@ void dpfPRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1
 
 void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1);
 
-block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t** dataShare);
+block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare);
 
 //DPF checking functions
 //written assuming 128 bit dpf domain
