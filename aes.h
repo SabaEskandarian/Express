@@ -101,6 +101,7 @@ AES_set_encrypt_key(const block userkey, AES_KEY *restrict key)
 static inline void
 AES_ecb_encrypt_blks(block *restrict blks, unsigned int nblks, const AES_KEY *restrict key)
 {
+    
     for (unsigned int i = 0; i < nblks; ++i)
         blks[i] = _mm_xor_si128(blks[i], key->rd_key[0]);
     for (unsigned int j = 1; j < key->rounds; ++j)
@@ -108,6 +109,7 @@ AES_ecb_encrypt_blks(block *restrict blks, unsigned int nblks, const AES_KEY *re
             blks[i] = _mm_aesenc_si128(blks[i], key->rd_key[j]);
     for (unsigned int i = 0; i < nblks; ++i)
         blks[i] = _mm_aesenclast_si128(blks[i], key->rd_key[key->rounds]);
+    
 }
 
 static inline void
