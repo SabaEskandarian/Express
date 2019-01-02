@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "aes.h"
-#include "block.h"
+
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <string.h>
 
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
@@ -26,26 +29,26 @@ u256b add256b(u256b *x, u256b *y);
 u256b mul256b(u256b *x, u256b *y);
 */
 
+uint128_t getRandomBlock();
+
 //DPF functions, PRG, GEN, and EVAL from libdpf
 
-void dpfPRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2);
+void dpfPRG(EVP_CIPHER_CTX *ctx, uint128_t input, uint128_t* output1, uint128_t* output2, int* bit1, int* bit2);
 
-void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1);
+void genDPF(EVP_CIPHER_CTX *ctx, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1);
 
-block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare);
+uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare);
 
 //DPF checking functions
 //written assuming 128 bit dpf domain
 
-int getSeed(block* seed);
-
-void PRF(AES_KEY *key, block seed, int layer, int count, block* output);
+void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output);
 
 //client check inputs
-void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShare, int dbLayers, uint8_t* bits, block* nonZeroVectors);
+void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors);
 
 //server check inputs
-void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vectors, block* outVectors);
+void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors);
 
 //auditor functionality
-int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* outVectorsA, block* outVectorsB);
+int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint128_t* outVectorsA, uint128_t* outVectorsB);

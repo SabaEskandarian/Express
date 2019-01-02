@@ -3,21 +3,44 @@
 #include <omp.h>
 #include <time.h>
 
-block dpf_reverse_lsb(block input){
-	static long long b1 = 0;
-	static long long b2 = 1;
-	block xor = dpf_make_block(b1, b2);
-	return dpf_xor(input, xor);
+
+
+uint128_t dpf_reverse_lsb(uint128_t input){
+    uint128_t xor = 1;
+	return input ^ xor;
 }
 
-block dpf_set_lsb_zero(block input){
-	int lsb = dpf_lsb(input);
+uint128_t dpf_lsb(uint128_t input){
+    return input & 1;
+}
+
+uint128_t dpf_set_lsb_zero(uint128_t input){
+    int lsb = input & 1;
 
 	if(lsb == 1){
 		return dpf_reverse_lsb(input);	
 	}else{
 		return input;
 	}
+}
+
+void _output_bit_to_bit(uint128_t input){
+    for(int i = 0; i < 64; i++)
+    {
+        if( (1ll << i) & input)
+            printf("1");
+	else
+	    printf("0");
+    }
+}
+
+void print_block(uint128_t input) {
+    uint64_t *val = (uint64_t *) &input;
+
+	//printf("%016lx%016lx\n", val[0], val[1]);
+	_output_bit_to_bit(val[0]);
+	_output_bit_to_bit(val[1]);
+	printf("\n");
 }
 
 /*
@@ -65,18 +88,51 @@ u256b mul256b(u256b *x, u256b *y)
 }
 */
 
+uint128_t getRandomBlock(){
+    static uint8_t* randKey = NULL;//(uint8_t*) malloc(16);
+    static EVP_CIPHER_CTX* randCtx;
+    static uint128_t counter = 0;
+    
+    int len = 0;
+    uint128_t output = 0;
+    if(!randKey){
+        randKey = (uint8_t*) malloc(16);
+        if(!(randCtx = EVP_CIPHER_CTX_new())) 
+            printf("errors occured in creating context\n");
+        if(!RAND_bytes(randKey, 16)){
+            printf("failed to seed randomness\n");
+        }
+        if(1 != EVP_EncryptInit_ex(randCtx, EVP_aes_128_ecb(), NULL, randKey, NULL))
+            printf("errors occured in randomness init\n");
+        EVP_CIPHER_CTX_set_padding(randCtx, 0);
+    }
+    
+    if(1 != EVP_EncryptUpdate(randCtx, (uint8_t*)&output, &len, (uint8_t*)&counter, 16))
+        printf("errors occured in generating randomness\n");
+    counter++;
+    return output;
+}
+
 //this is the PRG used for the DPF 
-void dpfPRG(AES_KEY *key, block input, block* output1, block* output2, int* bit1, int* bit2){
+void dpfPRG(EVP_CIPHER_CTX *ctx, uint128_t input, uint128_t* output1, uint128_t* output2, int* bit1, int* bit2){
+    
 	input = dpf_set_lsb_zero(input);
 
-	block stash[2];
-	stash[0] = input;
-	stash[1] = dpf_reverse_lsb(input);
+    int len = 0;
+	uint128_t stashin[2];
+	stashin[0] = input;
+	stashin[1] = dpf_reverse_lsb(input);
+	uint128_t stash[2];
 
-	AES_ecb_encrypt_blks(stash, 2, key);
-
-	stash[0] = dpf_xor(stash[0], input);
-	stash[1] = dpf_xor(stash[1], input);
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    if(1 != EVP_EncryptUpdate(ctx, (uint8_t*)stash, &len, (uint8_t*)stashin, 32))
+        printf("errors occured in encrypt\n");
+    //no need to do this since we're working with exact multiples of the block size
+    //if(1 != EVP_EncryptFinal_ex(ctx, stash + len, &len)) 
+    //    printf("errors occured in final\n");
+    
+	stash[0] = stash[0] ^ input;
+	stash[1] = stash[1] ^ input;
 	stash[1] = dpf_reverse_lsb(stash[1]);
 
 	*bit1 = dpf_lsb(stash[0]);
@@ -90,26 +146,26 @@ static int getbit(uint128_t x, int n, int b){
 	return ((uint128_t)(x) >> (n - b)) & 1;
 }
 
-void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1){
+void genDPF(EVP_CIPHER_CTX *ctx, int domainSize, uint128_t index, int dataSize, uint8_t* data, unsigned char** k0, unsigned char **k1){
     int maxLayer = domainSize;
     
-    block s[maxLayer + 1][2];
+    uint128_t s[maxLayer + 1][2];
 	int t[maxLayer + 1 ][2];
-	block sCW[maxLayer];
+	uint128_t sCW[maxLayer];
 	int tCW[maxLayer][2];
     
-    s[0][0] = dpf_random_block();
-	s[0][1] = dpf_random_block();
+    s[0][0] = getRandomBlock();
+	s[0][1] = getRandomBlock();
 	t[0][0] = 0;
 	t[0][1] = 1;
     
-    block s0[2], s1[2]; // 0=L,1=R
+    uint128_t s0[2], s1[2]; // 0=L,1=R
     int t0[2], t1[2];
 	#define LEFT 0
 	#define RIGHT 1
 	for(int i = 1; i <= maxLayer; i++){
-        dpfPRG(key, s[i-1][0], &s0[LEFT], &s0[RIGHT], &t0[LEFT], &t0[RIGHT]);
-		dpfPRG(key, s[i-1][1], &s1[LEFT], &s1[RIGHT], &t1[LEFT], &t1[RIGHT]);
+        dpfPRG(ctx, s[i-1][0], &s0[LEFT], &s0[RIGHT], &t0[LEFT], &t0[RIGHT]);
+		dpfPRG(ctx, s[i-1][1], &s1[LEFT], &s1[RIGHT], &t1[LEFT], &t1[RIGHT]);
         
         int keep, lose;
 		int indexBit = getbit(index, domainSize, i);
@@ -122,13 +178,13 @@ void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t
 		}
             
 		
-        sCW[i-1] = dpf_xor(s0[lose], s1[lose]);
+        sCW[i-1] = s0[lose] ^ s1[lose];
 
 		tCW[i-1][LEFT] = t0[LEFT] ^ t1[LEFT] ^ indexBit ^ 1;
 		tCW[i-1][RIGHT] = t0[RIGHT] ^ t1[RIGHT] ^ indexBit;
         
 		if(t[i-1][0] == 1){
-			s[i][0] = dpf_xor(s0[keep], sCW[i-1]);
+			s[i][0] = s0[keep] ^ sCW[i-1];
 			t[i][0] = t0[keep] ^ tCW[i-1][keep];
 		}else{
 			s[i][0] = s0[keep];
@@ -136,7 +192,7 @@ void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t
 		}
 
 		if(t[i-1][1] == 1){
-			s[i][1] = dpf_xor(s1[keep], sCW[i-1]);
+			s[i][1] = s1[keep] ^ sCW[i-1];
 			t[i][1] = t1[keep] ^ tCW[i-1][keep];
 		}else{
 			s[i][1] = s1[keep];
@@ -151,25 +207,33 @@ void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t
 	buff1 = (unsigned char*) malloc(1 + 16 + 1 + 18 * maxLayer + dataSize);
     
     //take data, xor it with dataSize bits generated from s_0^n and another dataSize bits generated from s_1^n
-    uint8_t *lastCW = (uint8_t*) malloc(dataSize);
-    int *convert0 = (int*) malloc(dataSize+16);
-    int *convert1 = (int*) malloc(dataSize+16);
-    
     //use a counter mode encryption of 0 with each seed as key to get prg output
-    for(int i = 0; i < (dataSize+16)/4; i++){
-        convert0[i] = i;
-        convert1[i] = i;
-    }
+    uint8_t *lastCW = (uint8_t*) malloc(dataSize);
+    uint8_t *convert0 = (uint8_t*) malloc(dataSize+16);
+    uint8_t *convert1 = (uint8_t*) malloc(dataSize+16);
+    uint8_t *zeros = (uint8_t*) malloc(dataSize+16);
+    memset(zeros, 0, dataSize+16);
     
     memcpy(lastCW, data, dataSize);
     
+    int len = 0;
     //generate dataSize length prg outputs from the seeds
-    AES_KEY cwKey0, cwKey1;
-	AES_set_encrypt_key(s[maxLayer][0], &cwKey0);
-	AES_set_encrypt_key(s[maxLayer][1], &cwKey1);
-    
-    AES_ecb_encrypt_blks((block*) convert0, (dataSize+16)/16, &cwKey0);
-    AES_ecb_encrypt_blks((block*) convert1, (dataSize+16)/16, &cwKey1);
+
+    EVP_CIPHER_CTX *seedCtx0;
+    EVP_CIPHER_CTX *seedCtx1;
+
+    if(!(seedCtx0 = EVP_CIPHER_CTX_new())) 
+        printf("errors occured in creating context\n");
+    if(!(seedCtx1 = EVP_CIPHER_CTX_new())) 
+        printf("errors occured in creating context\n");
+    if(1 != EVP_EncryptInit_ex(seedCtx0, EVP_aes_128_ctr(), NULL, (uint8_t*)&s[maxLayer][0], NULL))
+        printf("errors occured in init of dpf gen\n");
+    if(1 != EVP_EncryptInit_ex(seedCtx1, EVP_aes_128_ctr(), NULL, (uint8_t*)&s[maxLayer][1], NULL))
+        printf("errors occured in init of dpf gen\n");
+    if(1 != EVP_EncryptUpdate(seedCtx0, convert0, &len, zeros, dataSize))
+        printf("errors occured in encrypt\n"); 
+    if(1 != EVP_EncryptUpdate(seedCtx1, convert1, &len, zeros, dataSize))
+        printf("errors occured in encrypt\n"); 
 
     for(int i = 0; i < dataSize; i++){
         lastCW[i] = lastCW[i] ^ ((uint8_t*)convert0)[i] ^ ((uint8_t*)convert1)[i];
@@ -202,18 +266,21 @@ void genDPF(AES_KEY *key, int domainSize, uint128_t index, int dataSize, uint8_t
     free(lastCW);
     free(convert0);
     free(convert1);
+    free(zeros);
+    EVP_CIPHER_CTX_free(seedCtx0);
+    EVP_CIPHER_CTX_free(seedCtx1);
 }
 
-block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare){
+uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare){
     
     //dataShare is of size dataSize
     
  	int n = k[0];
 	int maxLayer = n;
 
-	block s[maxLayer + 1];
+	uint128_t s[maxLayer + 1];
 	int t[maxLayer + 1];
-	block sCW[maxLayer];
+	uint128_t sCW[maxLayer];
 	int tCW[maxLayer][2];
 
 	memcpy(&s[0], &k[1], 16);
@@ -225,14 +292,14 @@ block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t
 		tCW[i-1][1] = k[18 * i + 17];
 	}
 
-	block sL, sR;
+	uint128_t sL, sR;
 	int tL, tR;
 	for(int i = 1; i <= maxLayer; i++){
-		dpfPRG(key, s[i - 1], &sL, &sR, &tL, &tR); 
+		dpfPRG(ctx, s[i - 1], &sL, &sR, &tL, &tR); 
 
 		if(t[i-1] == 1){
-			sL = dpf_xor(sL, sCW[i-1]);
-			sR = dpf_xor(sR, sCW[i-1]);
+			sL = sL ^ sCW[i-1];
+			sR = sR ^ sCW[i-1];
 			tL = tL ^ tCW[i-1][0];
 			tR = tR ^ tCW[i-1][1];	
 		}
@@ -248,44 +315,41 @@ block evalDPF(AES_KEY *key, unsigned char* k, uint128_t x, int dataSize, uint8_t
 	}
     
     //get the data share out
-    
-    int *convert = (int*) malloc(dataSize+16);
+    int len = 0;
+    uint8_t *zeros = (uint8_t*) malloc(dataSize+16);
+    memset(zeros, 0, dataSize+16);
     //use a counter mode encryption of 0 with each seed as key to get prg output
-    for(int i = 0; i < (dataSize+16)/4; i++){
-        convert[i] = i;
-    }
     
-    AES_KEY cwKey;
-	AES_set_encrypt_key(s[maxLayer], &cwKey);
-    AES_ecb_encrypt_blks((block*) convert, (dataSize+16)/16, &cwKey);
+    EVP_CIPHER_CTX *seedCtx;
+    if(!(seedCtx = EVP_CIPHER_CTX_new())) 
+        printf("errors occured in creating context\n");
+    if(1 != EVP_EncryptInit_ex(seedCtx, EVP_aes_128_ctr(), NULL, (uint8_t*)&s[maxLayer], NULL))
+        printf("errors occured in init of dpf eval\n");
+    if(1 != EVP_EncryptUpdate(seedCtx, dataShare, &len, zeros, dataSize))
+        printf("errors occured in encrypt\n");
     
     for(int i = 0; i < dataSize; i++){
-        
-        dataShare[i] = ((uint8_t*)convert)[i];
-        
         if(t[maxLayer] == 1){
             //xor in correction word
             dataShare[i] = dataShare[i] ^ k[18*n+18+i];
         }
-        
                 //printf("%x\n", (*dataShare)[i]);
 
-    }
+    }    
+    
+    free(zeros);
+    EVP_CIPHER_CTX_free(seedCtx);
 
-    free(convert);
-    
     //use the last seed for dpf checking
-	return s[maxLayer];
-    
+	return s[maxLayer];    
 }
 
 //use the correllated randomness so that servers and user pick same randomness
-//untested function
-//void PRF(AES_KEY *key, block input, block* output){
 //this is the PRF for dpf checking
-void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
+void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output){
 
-    block input = seed;
+    int len = 0;
+    uint128_t input = seed;
     
     //xor count with 32 bits of input and layer with next 32 bits. 
     //count = -1 is for determining whether to swap or not when shuffling halves
@@ -295,29 +359,20 @@ void PRF(AES_KEY *key, block seed, int layer, int count, block* output){
     temp[0] = temp[0] ^ count;
     temp[1] = temp[1] ^ layer;
 
-	block stash = input;
+	uint128_t stashin = input;
+    uint128_t stash = 0;
 
-	AES_ecb_encrypt_blks(&stash, 1, key);
+    if(1 != EVP_EncryptUpdate(ctx, (uint8_t*)&stash, &len, (uint8_t*)&stashin, 16))
+        printf("errors occured in encrypt\n");
 
-	stash = dpf_xor(stash, input);
+	stash = stash ^ input;
 
 	*output = stash;
     //*output = (block)(uint128_t)0;
 }
 
-//void PRF2(AES_KEY *key, block seed, int layer, int count, block* output){
-//
-//    *output = (block)(uint128_t)1;
-//}
-
-//to generate a shared randomness to use as input to prf with counter
-int getSeed(block* seed){
-    return RAND_bytes((uint8_t*)seed, 16);
-}
-
 //client check inputs
-//void clientVerify(AES_KEY *key, block seed, uint128_t alpha, int dbLayers, int dbSize, uint8_t* bits, block* nonZeroVectors){
-void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShare, int dbLayers, uint8_t* bits, block* nonZeroVectors){
+void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors){
     
     //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
     
@@ -326,7 +381,7 @@ void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShar
     
     #pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
-        block whenToSwap;
+        uint128_t whenToSwap;
         int newIndex;
         int oldIndex;
 
@@ -341,15 +396,14 @@ void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShar
         //printf("bits %d before potential flip: %d\n", i, bits[i]);
 
         //check if the halves will be swapped and set the entry of bits
-        PRF(key, seed, i, -1, &whenToSwap);
+        PRF(ctx, seed, i, -1, &whenToSwap);
 
         bits[i] = bits[i] ^ ((uint128_t)whenToSwap % 2);
         
-        block temp;
+        uint128_t temp;
         uint128_t temp2;
         //check the mask value and set entry of nonZeroVectors
-        //PRF(key, seed, i, oldIndex, &nonZeroVectors[i]);
-        PRF(key, seed, i, oldIndex, &temp);
+        PRF(ctx, seed, i, oldIndex, &temp);
         temp2 = (((uint128_t)aShare - (uint128_t)bShare)*(uint128_t)temp);
         memcpy(&nonZeroVectors[i], &temp2, 16);
         
@@ -358,15 +412,15 @@ void clientVerify(AES_KEY *key, block seed, int index, block aShare, block bShar
 }
 
 //server check inputs
-void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vectors, block* outVectors){
+void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors){
     
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
 
     //don't modify vectors -- it should be treated as read-only, so make a copy
-    uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(block));
-    memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(block));
+    uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(uint128_t));
+    memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(uint128_t));
     
-    block prfOutput;
+    uint128_t prfOutput;
     uint128_t leftSum, rightSum;
     int newDbSize = dbSize;
     
@@ -381,12 +435,9 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
           default(shared) private(prfOutput) \
           reduction(+:rightSum,leftSum)
         for(int j = 0; j < newDbSize; j++){
-            PRF(key, seed, i, j, &prfOutput);         
+            PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
                 rightSum = rightSum + ((uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput);
-                //dpf_cb(prfOutput);
-                //dpf_cb(vectorsWorkSpace[j]);
-                //dpf_cb((block)rightSum);
             }
             else{ // j is in left half
                 leftSum = leftSum + ((uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput);
@@ -403,7 +454,7 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
         newDbSize = 1 << (dbLayers - (i+1));
                 
         //check if the halves will be swapped and place the sums in the appropriate spots
-        PRF(key, seed, i, -1, &prfOutput);
+        PRF(ctx, seed, i, -1, &prfOutput);
         if((uint128_t)prfOutput % 2 == 0){
             memcpy(&outVectors[2*i], &leftSum, 16);
             memcpy(&outVectors[2*i+1], &rightSum, 16);
@@ -417,7 +468,7 @@ void serverVerify(AES_KEY *key, block seed, int dbLayers, int dbSize, block* vec
 }
 
 //auditor functionality
-int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* outVectorsA, block* outVectorsB){
+int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint128_t* outVectorsA, uint128_t* outVectorsB){
     
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
@@ -439,10 +490,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
             memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0
         )){
             printf("fail conditions in round %d: %d %d \n", i, memcmp(&mergeAB[1-bits[i]], &zero, 16), memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16));
-            //dpf_cb((block)mergeAB[bits[i]]);
-            //dpf_cb((block)nonZeroVectors[i]);
 
-            
             pass = 0;
         }
         
@@ -451,26 +499,16 @@ int auditorVerify(int dbLayers, uint8_t* bits, block* nonZeroVectors, block* out
     return pass;
 }
 
-void print_block_array(block* content, int length){
-    for(int i = 0; i < length; i++){
-        printf("entry %d: ", i);
-        dpf_cb(content[i]);
-    }
-}
-
 int main(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
-    
-
-	long long userkey1 = 597349; long long userkey2 = 121379; 
-	block userkey = dpf_make_block(userkey1, userkey2);
-
-	dpf_seed(NULL);
-
-	AES_KEY key;
-	AES_set_encrypt_key(userkey, &key);
-    
+    EVP_CIPHER_CTX *ctx;
+    if(!(ctx = EVP_CIPHER_CTX_new())) 
+        printf("errors occured in creating context\n");
+    unsigned char *aeskey = (unsigned char*) "0123456789123456";
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, aeskey, NULL))
+        printf("errors occured in init\n");
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
     
     //generate DPF keys for a particular query
 	unsigned char *k0;
@@ -482,27 +520,23 @@ int main(){
 
     //can only test with smaller constants because
     //gcc does not support 128 bit constants
-	genDPF(&key, 128, 300, dataSize, data, &k0, &k1);
+	genDPF(ctx, 128, 300, dataSize, data, &k0, &k1);
     	
     //evaluate dpf
-	block res1;
-	block res2;
+	uint128_t res1;
+	uint128_t res2;
     uint8_t* dataShare0 = (uint8_t*) malloc(dataSize);
     uint8_t* dataShare1 = (uint8_t*) malloc(dataSize);
     
-	res1 = evalDPF(&key, k0, 12, dataSize, dataShare0);
-	res2 = evalDPF(&key, k1, 12, dataSize, dataShare1);
-	//dpf_cb(res1);
-	//dpf_cb(res2);
+	res1 = evalDPF(ctx, k0, 12, dataSize, dataShare0);
+	res2 = evalDPF(ctx, k1, 12, dataSize, dataShare1);
     printf("\nresult evaluated at 12: ");
-	dpf_cb(dpf_xor(res1, res2));
+	print_block(res1 ^ res2);
 
-	res1 = evalDPF(&key, k0, 300, dataSize, dataShare0);
-	res2 = evalDPF(&key, k1, 300, dataSize, dataShare1);
-	//dpf_cb(res1);
-	//dpf_cb(res2);
+	res1 = evalDPF(ctx, k0, 300, dataSize, dataShare0);
+	res2 = evalDPF(ctx, k1, 300, dataSize, dataShare1);
     printf("\nresult evaluated at 300: ");
-	dpf_cb(dpf_xor(res1, res2));
+	print_block(res1 ^ res2);
     uint8_t* recoveredData = (uint8_t*) malloc(dataSize);
     printf("data recovered: ");
     for(int i = 0; i < dataSize; i++){
@@ -522,36 +556,32 @@ int main(){
     uint128_t db[] = {4343423, 232132, 465437, 43, 300, 5346643};
     int dbSize = 6;
     int dbLayers = 3;
-    block* seed = malloc(sizeof(block));
-    if(!getSeed(seed)){
-        printf("couldn't get seed\n");
-        return 1;
-    }
-    
+    uint128_t* seed = malloc(sizeof(uint128_t));
+    *seed = getRandomBlock(); 
     
     //allocate the various arrays we will need
     uint8_t* bits = malloc(dbLayers);
-    block* nonZeroVectors = malloc(sizeof(block)*dbLayers);
-    block* vectorsA = malloc(sizeof(block)*dbSize);
-    block* vectorsB = malloc(sizeof(block)*dbSize);
-    block* outVectorsA = malloc(sizeof(block)*2*dbLayers);
-    block* outVectorsB = malloc(sizeof(block)*2*dbLayers);
+    uint128_t* nonZeroVectors = malloc(sizeof(uint128_t)*dbLayers);
+    uint128_t* vectorsA = malloc(sizeof(uint128_t)*dbSize);
+    uint128_t* vectorsB = malloc(sizeof(uint128_t)*dbSize);
+    uint128_t* outVectorsA = malloc(sizeof(uint128_t)*2*dbLayers);
+    uint128_t* outVectorsB = malloc(sizeof(uint128_t)*2*dbLayers);
     
     //evaluate the db at each point for each server
     #pragma omp parallel for
     for(int i = 0; i < dbSize; i++){
-        block res1, res2;
-        res1 = evalDPF(&key, k0, db[i], dataSize, dataShare0);
-        res2 = evalDPF(&key, k1, db[i], dataSize, dataShare1);
+        uint128_t res1, res2;
+        res1 = evalDPF(ctx, k0, db[i], dataSize, dataShare0);
+        res2 = evalDPF(ctx, k1, db[i], dataSize, dataShare1);
         memcpy(&vectorsA[i], &res1, 16);
         memcpy(&vectorsB[i], &res2, 16);
     }
     
     //run the dpf verification functions
-    clientVerify(&key, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, nonZeroVectors);
+    clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, nonZeroVectors);
 
-    serverVerify(&key, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
-    serverVerify(&key, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
+    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
+    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
 
     int pass = -1;
     
@@ -596,17 +626,17 @@ int main(){
     
     for(int j = 0; j < 6; j++){
         dataSize = strlen(s[j])+1;
-        genDPF(&key, 128, 300, dataSize, s[j], &k0, &k1);
-        res1 = evalDPF(&key, k0, 12, dataSize, dataShare0);
-        res2 = evalDPF(&key, k1, 12, dataSize, dataShare1);
+        genDPF(ctx, 128, 300, dataSize, s[j], &k0, &k1);
+        res1 = evalDPF(ctx, k0, 12, dataSize, dataShare0);
+        res2 = evalDPF(ctx, k1, 12, dataSize, dataShare1);
         for(int i = 0; i < dataSize; i++){
             recoveredData[i] = dataShare0[i] ^ dataShare1[i];
         }
         if(strcmp(recoveredData, s[j]) == 0){
             printf("string %d recovered data for wrong input", j);
         }
-        res1 = evalDPF(&key, k0, 300, dataSize, dataShare0);
-        res2 = evalDPF(&key, k1, 300, dataSize, dataShare1);
+        res1 = evalDPF(ctx, k0, 300, dataSize, dataShare0);
+        res2 = evalDPF(ctx, k1, 300, dataSize, dataShare1);
         for(int i = 0; i < dataSize; i++){
             recoveredData[i] = dataShare0[i] ^ dataShare1[i];
         }
@@ -616,7 +646,7 @@ int main(){
     
         clock_t start = clock(), diff;
         for(int i = 0; i < 100000; i++){
-                res1 = evalDPF(&key, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
+                res1 = evalDPF(ctx, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
         }
         diff = clock() - start;
 
