@@ -48,6 +48,7 @@ uint128_t addModP(uint128_t in1, uint128_t in2){
     //if we wrapped around, add in the MODP
     if(out + MODP < in1 || out > 0-MODP){
         out += MODP;
+        //printf("addModP wrapped\n");
     }
     return out;
 }
@@ -57,6 +58,8 @@ uint128_t subModP(uint128_t in1, uint128_t in2){
     //if we wrapped around, subtract the MODP
     if(in2 > in1){
         out -= MODP;
+        //printf("subModP wrapped\n");
+
     }
     //straight-line version?
     //out -= (in2 > in1) * MODP;
@@ -78,7 +81,10 @@ uint128_t multModP(uint128_t in1, uint128_t in2){
     //printf("\n");
 
     uint128_t outlow = in1low * in2low;
-    if(outlow + MODP < outlow) outlow += MODP;
+    if(outlow + MODP < in1low || outlow + MODP < in2low|| outlow > 0-MODP) {
+        outlow += MODP; 
+        //printf("mult wrap\n");
+    }
     
     //print_block(outlow);
         
@@ -91,8 +97,10 @@ uint128_t multModP(uint128_t in1, uint128_t in2){
     //print_block(outmid2);
         
     //the low part gets the low order bits of the mids
-    uint128_t outlow1 = ((outmid1 & (uint128_t)0xffffffffffffffff) +  (outmid2 & (uint128_t)0xffffffffffffffff)) << 64;
-    if(outlow1 + MODP < ((outmid1 & (uint128_t)0xffffffffffffffff) << 64)) outlow1 += MODP;
+    uint128_t outlow1 = addModP(outmid1 << 64, outmid2 << 64);
+    
+    //uint128_t outlow1 = ((outmid1 & (uint128_t)0xffffffffffffffff) +  (outmid2 & (uint128_t)0xffffffffffffffff)) << 64;
+    //if(outlow1 + MODP < ((outmid1 & (uint128_t)0xffffffffffffffff) << 64)) outlow1 += MODP;
         
     //print_block(outlow1);
     
@@ -120,16 +128,7 @@ uint128_t multModP(uint128_t in1, uint128_t in2){
     out = addModP(out, addModP(outhighlow, addModP(outhighhighlow, outhighhighhigh)));
     
     //print_block(out);
-    
-    //now we need to account for wraps caused by outhigh
-    //uint128_t outveryhigh = ((outhigh << 8) >> 8) * MODP;
-    //out = addModP(out, outveryhigh);
-    
-    //and finally we need to account for wraps from the top byte of outhigh
-    //this only works if MODP < 256 so it fits in one byte
-    //outveryhigh = outhigh >> 64;
-    //outveryhigh = (outveryhigh >> 56) * LOTSAMODP;
-    //out = addModP(out, outveryhigh);
+
     return out;
 }
 
@@ -426,6 +425,7 @@ void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* o
 void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors){
     
     //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
+    //printf("clientVerify\n");
     
     //set bits vector to all zeros
     memset(bits, 0, dbLayers);
@@ -465,7 +465,7 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
 //server check inputs
 void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors){
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
-
+    //printf("serverVerify\n");
     //don't modify vectors -- it should be treated as read-only, so make a copy
     uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(uint128_t));
     memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(uint128_t));
@@ -473,6 +473,9 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
     uint128_t prfOutput;
     uint128_t leftSum, rightSum;
     int newDbSize = dbSize;
+    
+    
+    #pragma omp declare reduction(ADDMODP: uint128_t : omp_out += omp_in + (omp_out + omp_in < omp_out || omp_out+omp_in > 0-MODP)*MODP)
     
 
     for(int i = 0; i < dbLayers; i++){
@@ -483,14 +486,18 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         //multiply each element by a ``random'' value and add into the appropriate sum
         #pragma omp parallel for \
           default(shared) private(prfOutput) \
-          reduction(+:rightSum,leftSum)
+          reduction(ADDMODP:rightSum,leftSum)
         for(int j = 0; j < newDbSize; j++){
             PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
-                rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
+                rightSum = multModP(vectorsWorkSpace[j], prfOutput);
+                //use line commented below when compiling without openmp
+                //rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
             else{ // j is in left half
-                leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
+                leftSum = multModP(vectorsWorkSpace[j], prfOutput);
+                //use line commented below when compiling without openmp
+                //leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
         }
         
@@ -519,7 +526,7 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
 
 //auditor functionality
 int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint128_t* outVectorsA, uint128_t* outVectorsB){
-    
+    //printf("auditorVerify\n");
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
     
@@ -542,6 +549,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint12
             printf("fail conditions in round %d: %d %d \n", i, memcmp(&mergeAB[1-bits[i]], &zero, 16), memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16));
             printf("auditor expected to see \n");print_block(nonZeroVectors[i]);
             printf("but auditor saw \n");print_block(mergeAB[bits[i]]);
+            printf("difference \n"); print_block(nonZeroVectors[i] - mergeAB[bits[i]]);print_block(mergeAB[bits[i]] - nonZeroVectors[i]);
 
             pass = 0;
         }

@@ -13,7 +13,6 @@
 //so wrapping around involves a gap of size 159
 //from https://primes.utm.edu/lists/2small/100bit.html
 #define MODP (uint128_t) 159
-#define LOTSAMODP (uint128_t) 25281
 
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
