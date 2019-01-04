@@ -43,50 +43,96 @@ void print_block(uint128_t input) {
 	printf("\n");
 }
 
-/*
- * Not clear we need this
-//these functions taken from
-//https://locklessinc.com/articles/256bit_arithmetic/
-//they saw naive multiplication was faster than karatsuba for this
-//for an older version of gcc, they got a >2x improvement by writing the multiplication in assembly
-//so maybe we want to switch to assembly later if that ends up being a bottleneck
-u256b add256b(u256b *x, u256b *y)
-{
-	u128b lo = (u128b) x->lo + y->lo;
-	u128b mid = (u128b) x->mid + y->mid + (lo >> 64);
-	u256b result =
-	{
-		.lo = lo,
-		.mid = mid,
-		.hi = x->hi + y->hi + (mid >> 64),
-	};
-	
-	return result;
+uint128_t addModP(uint128_t in1, uint128_t in2){
+    uint128_t out = in1 + in2;
+    //if we wrapped around, add in the MODP
+    if(out + MODP < in1 || out > 0-MODP){
+        out += MODP;
+    }
+    return out;
 }
 
-u256b mul256b(u256b *x, u256b *y)
-{
-	u128b t1 = (u128b) x->lo * y->lo;
-	u128b t2 = (u128b) x->lo * y->mid;
-	u128b t3 = x->lo * y->hi;
-	u128b t4 = (u128b) x->mid * y->lo;
-	u128b t5 = (u128b) x->mid * y->mid;
-	u64b t6 = x->mid * y->hi;
-	u128b t7 = x->hi * y->lo;
-	u64b t8 = x->hi * y->mid;
-
-	u64b lo = t1;
-	u128b m1 = (t1 >> 64) + (u64b)t2;
-	u64b m2 = m1;
-	u128b mid = (u128b) m2 + (u64b)t4;
-	u128b hi = (t2 >> 64) + t3 + (t4 >> 64) + t5 + ((u128b) t6 << 64) + t7
-		 + ((u128b) t8 << 64) + (m1 >> 64) + (mid >> 64);
-	
-	u256b result = {lo, mid, hi};
-	
-	return result;
+uint128_t subModP(uint128_t in1, uint128_t in2){
+    uint128_t out = in1 - in2;
+    //if we wrapped around, subtract the MODP
+    if(in2 > in1){
+        out -= MODP;
+    }
+    //straight-line version?
+    //out -= (in2 > in1) * MODP;
+    return out;
 }
-*/
+
+uint128_t multModP(uint128_t in1, uint128_t in2){
+    uint128_t out = 0;
+    uint128_t in1high = in1 >> 64;
+    uint128_t in2high = in2 >> 64;
+    uint128_t in1low = in1 & (uint128_t)0xffffffffffffffff;
+    uint128_t in2low = in2 & (uint128_t)0xffffffffffffffff;
+    
+    //printf("\n");
+    //print_block(in1high); printf("\n");
+    //print_block(in2high); printf("\n");
+    //print_block(in1low); printf("\n");
+    //print_block(in2low); printf("\n");
+    //printf("\n");
+
+    uint128_t outlow = in1low * in2low;
+    if(outlow + MODP < outlow) outlow += MODP;
+    
+    //print_block(outlow);
+        
+    uint128_t outhigh = in1high * in2high;
+    uint128_t outmid1 = in1high*in2low;
+    uint128_t outmid2 = in2high*in1low;
+    
+    //print_block(outhigh);
+    //print_block(outmid1);
+    //print_block(outmid2);
+        
+    //the low part gets the low order bits of the mids
+    uint128_t outlow1 = ((outmid1 & (uint128_t)0xffffffffffffffff) +  (outmid2 & (uint128_t)0xffffffffffffffff)) << 64;
+    if(outlow1 + MODP < ((outmid1 & (uint128_t)0xffffffffffffffff) << 64)) outlow1 += MODP;
+        
+    //print_block(outlow1);
+    
+    out = addModP(outlow, outlow1);
+
+    //print_block(out);
+    
+    //multiply in the wrap for as many times as we wrapped
+    uint128_t lowWraps = ((outmid1 >> 64) + (outmid2 >> 64)) * MODP;
+    out = addModP(out, lowWraps);
+    
+    //print_block(lowWraps);
+    
+    //now we need to account for wraps caused by outhigh
+    uint128_t outhighlow = (outhigh & (uint128_t)0xffffffffffffffff) * MODP;
+    uint128_t outhighhigh = (outhigh >> 64) * MODP;
+    uint128_t outhighhighlow = outhighhigh << 64;
+    uint128_t outhighhighhigh = (outhighhigh >> 64) * MODP;
+    
+    //print_block(outhighlow);
+    //print_block(outhighhigh);
+    //print_block(outhighhighlow);
+    //print_block(outhighhighhigh);
+    
+    out = addModP(out, addModP(outhighlow, addModP(outhighhighlow, outhighhighhigh)));
+    
+    //print_block(out);
+    
+    //now we need to account for wraps caused by outhigh
+    //uint128_t outveryhigh = ((outhigh << 8) >> 8) * MODP;
+    //out = addModP(out, outveryhigh);
+    
+    //and finally we need to account for wraps from the top byte of outhigh
+    //this only works if MODP < 256 so it fits in one byte
+    //outveryhigh = outhigh >> 64;
+    //outveryhigh = (outveryhigh >> 56) * LOTSAMODP;
+    //out = addModP(out, outveryhigh);
+    return out;
+}
+
 
 uint128_t getRandomBlock(){
     static uint8_t* randKey = NULL;//(uint8_t*) malloc(16);
@@ -347,9 +393,9 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
 //use the correllated randomness so that servers and user pick same randomness
 //this is the PRF for dpf checking
 void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output){
-
     int len = 0;
     uint128_t input = seed;
+    int tries = 0;
     
     //xor count with 32 bits of input and layer with next 32 bits. 
     //count = -1 is for determining whether to swap or not when shuffling halves
@@ -358,17 +404,22 @@ void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* o
     temp = (int*)&input;
     temp[0] = temp[0] ^ count;
     temp[1] = temp[1] ^ layer;
-
-	uint128_t stashin = input;
     uint128_t stash = 0;
+    
+    do{
+        temp[2] = temp[2] ^ tries;
+        uint128_t stashin = input;
 
-    if(1 != EVP_EncryptUpdate(ctx, (uint8_t*)&stash, &len, (uint8_t*)&stashin, 16))
-        printf("errors occured in encrypt\n");
+        if(1 != EVP_EncryptUpdate(ctx, (uint8_t*)&stash, &len, (uint8_t*)&stashin, 16))
+            printf("errors occured in encrypt\n");
 
-	stash = stash ^ input;
+        stash = stash ^ input;
+        tries++;
+        
+        //drop blocks that are not in Z_p when count is not -1
+    } while(count != -1 && stash + MODP < stash);
 
 	*output = stash;
-    //*output = (block)(uint128_t)0;
 }
 
 //client check inputs
@@ -404,7 +455,7 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
         uint128_t temp2;
         //check the mask value and set entry of nonZeroVectors
         PRF(ctx, seed, i, oldIndex, &temp);
-        temp2 = (((uint128_t)aShare - (uint128_t)bShare)*(uint128_t)temp);
+        temp2 = multModP(subModP(aShare, bShare), temp);
         memcpy(&nonZeroVectors[i], &temp2, 16);
         
     }
@@ -413,7 +464,6 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
 
 //server check inputs
 void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors){
-    
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
 
     //don't modify vectors -- it should be treated as read-only, so make a copy
@@ -437,17 +487,17 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         for(int j = 0; j < newDbSize; j++){
             PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
-                rightSum = rightSum + ((uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput);
+                rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
             else{ // j is in left half
-                leftSum = leftSum + ((uint128_t)vectorsWorkSpace[j]*(uint128_t)prfOutput);
+                leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
         }
         
         //add together left and right halves for next iteration
         #pragma omp parallel for
         for(int j = 1<<(dbLayers - i - 1); j < newDbSize; j++){
-            vectorsWorkSpace[j - (1<<(dbLayers - i - 1))] =  vectorsWorkSpace[j - (1<<(dbLayers - i - 1))] + vectorsWorkSpace[j];
+            vectorsWorkSpace[j - (1<<(dbLayers - i - 1))] =  addModP(vectorsWorkSpace[j - (1<<(dbLayers - i - 1))], vectorsWorkSpace[j]);
         }
         
         //adjust newDbSize for next round
@@ -478,8 +528,8 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint12
         uint128_t mergeAB[2];
         
         //merge the output vectors to get the values
-        mergeAB[0] = (uint128_t)outVectorsA[2*i] - (uint128_t)outVectorsB[2*i];
-        mergeAB[1] = (uint128_t)outVectorsA[2*i+1] - (uint128_t)outVectorsB[2*i+1];
+        mergeAB[0] = subModP(outVectorsA[2*i], outVectorsB[2*i]);
+        mergeAB[1] = subModP(outVectorsA[2*i+1], outVectorsB[2*i+1]);
         
         //printf("%d %lu, %lu, %lu, %lu\n", i, outVectorsA[2*i], outVectorsA[2*i+1], outVectorsB[2*i], outVectorsB[2*i+1]);
         
@@ -490,6 +540,8 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint12
             memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16) != 0
         )){
             printf("fail conditions in round %d: %d %d \n", i, memcmp(&mergeAB[1-bits[i]], &zero, 16), memcmp(&mergeAB[bits[i]], &nonZeroVectors[i], 16));
+            printf("auditor expected to see \n");print_block(nonZeroVectors[i]);
+            printf("but auditor saw \n");print_block(mergeAB[bits[i]]);
 
             pass = 0;
         }
@@ -510,6 +562,8 @@ int main(){
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(ctx, 0);
     
+    
+    //printf("mult test: %d", multModP((uint128_t)5<<125,((uint128_t)6)<<125)); return 0;
     //generate DPF keys for a particular query
 	unsigned char *k0;
 	unsigned char *k1;

@@ -7,31 +7,25 @@
 #include <openssl/err.h>
 #include <string.h>
 
+#include <gmp.h>
+
+//use prime 2^128-159
+//so wrapping around involves a gap of size 159
+//from https://primes.utm.edu/lists/2small/100bit.html
+#define MODP (uint128_t) 159
+#define LOTSAMODP (uint128_t) 25281
+
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-/*
- * Not clear we need this
-//code from
-//https://locklessinc.com/articles/256bit_arithmetic/
-typedef unsigned long long u64b;
-typedef unsigned __int128 u128b;
-typedef struct u256b u256b;
-struct u256b
-{
-	u64b lo;
-	u64b mid;
-	u128b hi;
-};
-
-u256b add256b(u256b *x, u256b *y);
-
-u256b mul256b(u256b *x, u256b *y);
-*/
+//arithmetic mod P
+uint128_t addModP(uint128_t in1, uint128_t in2);
+uint128_t subModP(uint128_t in1, uint128_t in2);
+uint128_t multModP(uint128_t in1, uint128_t in2);
 
 uint128_t getRandomBlock();
 
-//DPF functions, PRG, GEN, and EVAL from libdpf
+//DPF functions
 
 void dpfPRG(EVP_CIPHER_CTX *ctx, uint128_t input, uint128_t* output1, uint128_t* output2, int* bit1, int* bit2);
 
@@ -40,7 +34,6 @@ void genDPF(EVP_CIPHER_CTX *ctx, int domainSize, uint128_t index, int dataSize, 
 uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare);
 
 //DPF checking functions
-//written assuming 128 bit dpf domain
 
 void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output);
 
