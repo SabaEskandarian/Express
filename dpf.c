@@ -559,7 +559,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint12
     return pass;
 }
 
-int main(){
+int dpfTests(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
     EVP_CIPHER_CTX *ctx;
