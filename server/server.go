@@ -1,4 +1,4 @@
-//source code based on denji/golang-tls
+//initial source code based on denji/golang-tls
 
 package main
 
@@ -15,7 +15,6 @@ import (
     "crypto/tls"
     "net"
     "os"
-    "strconv"
     "time"
     "io"
     "unsafe"
@@ -24,23 +23,18 @@ import (
 func main() {
     log.SetFlags(log.Lshortfile)
     
-    expSetup, err := strconv.Atoi(os.Args[1])//which setup to use
-    if err != nil {
-        log.Println("error: can't read experiment number")
-    }
     leader := 0
-    if len(os.Args) > 2 {
+    if len(os.Args) > 1 {
         leader = 1
     }
     
-    C.initializeServer(C.int(expSetup))
+    C.initializeServer()
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
     if err != nil {
         log.Println(err)
         return
     }
-
     
     config := &tls.Config{Certificates: []tls.Certificate{cer}}
     port := ":4442"
@@ -62,28 +56,108 @@ func main() {
             continue
         }
         conn.SetDeadline(time.Time{})
-        handleConnection(conn, expSetup, leader)
+        handleConnection(conn, leader)
     }
 }
 
-func handleConnection(conn net.Conn, experiment int, leader int) {
+func handleConnection(conn net.Conn, leader int) {
     defer conn.Close()
     
-    //these will be set by experiment
-    dataTransferSize:= 0
-    dataSize := 0
-    switch experiment {//TODO
-        case 1:
-            
-        case 2:
-            
-        case 3:
-            
-        case 4:
-            
-        case 5:
-            
+    //determine what kind of connection this is
+    connType := make([]byte, 1)
+    n, err:= conn.Read(connType)
+    if err != nil {
+        log.Println(err)
+        log.Println(n)
     }
+    if connType[0] == 1 { //register row
+
+        rowId:=make([]byte, 16)
+        dataSize:=make([]byte, 4)
+        rowKey:=make([]byte, 16)
+        
+        //read rowId
+        n, err= conn.Read(rowId)
+        if err != nil || n != 16{
+            log.Println(err)
+            log.Println(n)
+        }
+        
+        //read dataSize
+        n, err= conn.Read(dataSize)
+        if err != nil || n != 4{
+            log.Println(err)
+            log.Println(n)
+        }
+        //read rowKey
+        n, err= conn.Read(rowKey)
+        if err != nil || n != 16{
+            log.Println(err)
+            log.Println(n)
+        }
+        //call C command to register row
+        newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(dataSize)), (*C.uchar)(&rowKey[0]))
+        
+        //TODO: send the newIndex number back
+        
+    } else if connType[0] == 2 { //read
+        
+        index:= make([]byte, 4)
+        rowId:= make([]byte, 16)
+        
+        //read index
+        n, err= conn.Read(index)
+        if err != nil || n != 16{
+            log.Println(err)
+            log.Println(n)
+        }
+        
+        //read virtual address
+        n, err= conn.Read(rowId)
+        if err != nil || n != 16{
+            log.Println(err)
+            log.Println(n)
+        }
+        
+        //get data size
+        size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(index)))
+        
+        //make space for responses
+        data := make([]byte, size)
+        seed := make([]byte, 16)
+        
+        //get data
+        C.readEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+        
+        //write seed
+        n, err=conn.Write(seed)
+        if err != nil {
+            log.Println(n, err)
+            return
+        }
+        
+        //write data
+        n, err:=conn.Write(data)
+        if err != nil {
+            log.Println(n, err)
+            return
+        }
+        
+    } else if connType[0] == 3 { //write
+        handleWrite(conn, leader)
+    } else {
+        log.Println("invalid connection type")
+        return
+    }
+}
+
+func handleWrite(conn net.Conn, leader int) {
+    dataTransferSize:= 0 //how big the query from the user is
+    dataSize := 0 //how big the data in a row is
+    
+    //TODO read the two values above
+    
+    //TODO: note to self, some of the reads in this file need to be wrapped in a loop to make sure the whole input is read
     
     //get the input
     count:= 0
@@ -107,6 +181,8 @@ func handleConnection(conn net.Conn, experiment int, leader int) {
             log.Println(n, err)
             return
         }
+        
+        //TODO also send number of layers
     }
     
     //process query
@@ -145,4 +221,9 @@ func handleConnection(conn net.Conn, experiment int, leader int) {
     }
     
     return
+}
+
+//from stackexchange
+func ReadInt32Unsafe(b []byte) int32 {
+    return *(*int32)(unsafe.Pointer(&b[0]))
 }

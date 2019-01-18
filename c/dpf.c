@@ -422,7 +422,9 @@ void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* o
 }
 
 //client check inputs
-void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors){
+void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn){
+    
+    uint128_t *nonZeroVectors = (uint128_t*) nonZeroVectorsIn;
     
     //note that index is the actual index, not the virtual address, in our application to oblivious key value stores
     //printf("clientVerify\n");
@@ -525,7 +527,12 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
 }
 
 //auditor functionality
-int auditorVerify(int dbLayers, uint8_t* bits, uint128_t* nonZeroVectors, uint128_t* outVectorsA, uint128_t* outVectorsB){
+int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_t* outVectorsAIn, uint8_t* outVectorsBIn){
+    
+    uint128_t *nonZeroVectors = (uint128_t*)nonZeroVectorsIn;
+    uint128_t *outVectorsA = (uint128_t*)outVectorsAIn;
+    uint128_t *outVectorsB = (uint128_t*)outVectorsBIn;
+    
     //printf("auditorVerify\n");
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
@@ -640,7 +647,7 @@ int dpfTests(){
     }
     
     //run the dpf verification functions
-    clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, nonZeroVectors);
+    clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, (uint8_t*)nonZeroVectors);
 
     serverVerify(ctx, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
     serverVerify(ctx, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
@@ -650,7 +657,7 @@ int dpfTests(){
     //tamper with dpf outputs to see if auditor catches it
     //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
     
-    pass = auditorVerify(dbLayers, bits, nonZeroVectors, outVectorsA, outVectorsB);
+    pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
     
     printf("dpf check verification: %d\n", pass);
     
