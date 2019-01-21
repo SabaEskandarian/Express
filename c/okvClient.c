@@ -6,6 +6,10 @@
 
 rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
+uint8_t userBits[MAX_LAYERS];
+uint8_t nonZeroVectors[2*MAX_LAYERS];
+uint128_t shareA;
+uint128_t shareB;
 EVP_CIPHER_CTX *ctx;
 
 
@@ -79,6 +83,17 @@ void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySiz
     genDPF(ctx, 128, db[localIndex].rowID, dataSize, dataToWrite, &dpfQueryA, &dpfQueryB);
     
     queriesSet = 1;
+}
+
+void prepAudit(int index, int layers, uint8_t *seed){
+    
+    //eval the dpf query at A and B and put results in shareA, shareB
+    uint8_t temp[16];
+    shareA = evalDPF(ctx, dpfQueryA, db[index].rowID, 16, temp);
+    shareB = evalDPF(ctx, dpfQueryB, db[index].rowID, 16, temp);
+    
+    //call the auditing function
+    clientVerify(ctx, *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
 }
 
 

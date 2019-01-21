@@ -27,7 +27,7 @@ void getVirtualAddress(int index, uint8_t *virtualAddress);
 void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize);
 
 //prepare an audit response for most recent query
-//That can be done in go just using functions from dpf.h
+void prepAudit(int index, int layers, uint8_t *seed);
 
 //decrypt and recover a row
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);

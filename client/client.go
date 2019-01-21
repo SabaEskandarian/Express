@@ -238,14 +238,87 @@ func readRow(localIndex int) ([]byte){
     return C.GoBytes(C.outData, size)
 }
 
-//TODO
 func writeRow(localIndex int, data []byte) {
+    
+    dataSize := len(data)
+    querySize := make([]byte, 4)
+    
+    //prep the query
+    C.prepQuery(localIndex, (*C.uchar)(&data[0]), dataSize, (*C.int)(querySize))
+    
+    //call helper function goroutines to communicate with each party
+    go writeRowServerA(dataSize, querySize)
+    go writeRowServerB(dataSize, querySize)
+    
+}
+
+func writeRowServerA(dataSize, querySize int) {
     connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
         return
     }
     defer connA.Close()
+    
+    //1 byte connection type 3
+    connType := make([]byte, 1)
+    connType[0] = 3
+    n, err := connA.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write dataTransferSize
+    sendDataTransferSize := C.int(querySize)
+    n, err := connA.Write(sendDataTransferSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write dataSize
+    sendDataSize := C.int(dataSize)
+    n, err := connA.Write(sendDataSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write the query
+    sendQuery := C.GoBytes(C.dpfQueryA, querySize)
+    n, err := connA.Write(sendQuery)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //read seed and layers from server A
+    seed := make([]byte, 16)
+    for count := 0; count < 16 {
+        n, err= connA.Read(seed[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    layers := make([]byte, 4)
+    for count := 0; count < 4 {
+        n, err= connA.Read(layers[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    
+    writeRowAuditor(localIndex, C.int(layers), seed)
+    return
+}
+
+func writeRowServerB(dataSize, querySize int) {
+    
     connB, err := tls.Dial("tcp", serverB, conf)
     if err != nil {
         log.Println(err)
@@ -256,30 +329,84 @@ func writeRow(localIndex int, data []byte) {
     //1 byte connection type 3
     connType := make([]byte, 1)
     connType[0] = 3
-    n, err := connA.Write(connType)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    n, err = connB.Write(connType)
+    n, err := connB.Write(connType)
     if err != nil {
         log.Println(n, err)
         return
     }
     
     //write dataTransferSize
+    sendDataTransferSize := C.int(querySize)
+    n, err := connA.Write(sendDataTransferSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
     
     //write dataSize
-    
-    //read seed and layers from server A
-    
-    //send layers to auditor
-    
-    //send userbits to auditor
-    
-    //send nonzero vectors to auditor
-    
-    //read success bit
+    sendDataSize := C.int(dataSize)
+    n, err := connA.Write(sendDataSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+        
+    //write the query
+    sendQuery := C.GoBytes(C.dpfQueryB, querySize)
+    n, err := connB.Write(sendQuery)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    return
 }
 
-func writeRowA()
+func writeRowAuditor(index int, layers C.int, seed [16]byte) {
+    
+    //connect to auditor
+    conn, err := tls.Dial("tcp", auditor, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer conn.Close()
+        
+    //prepare the auditor message
+    C.prepAudit(C.int(index), layers, (*C.uchar)(&seed[0]))
+    
+    //send layers to auditor
+    n, err := connA.Write(layers)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //send userbits to auditor
+    sendBits := C.GoBytes(C.userBits, int(layers))
+    n, err := connA.Write(sendBits)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //send nonzero vectors to auditor
+    sendVectors := C.GoBytes(C.nonZeroVectors, int(layers)*2*16)
+    n, err := connA.Write(sendVectors)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //read success bit
+    auditResp := make([]byte, 1)
+    n, err = conn.Read(auditResp)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    if success[0] != 1 {
+        log.Println("user failed audit")
+    }
+    return
+}
