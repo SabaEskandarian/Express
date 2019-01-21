@@ -20,6 +20,9 @@ void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB);
 //add index to most recent row
 void addIndex(int index);
 
+//get the virtual address corresponding to a given index
+void getVirtualAddress(int index, uint8_t *virtualAddress);
+
 //prepare a query
 void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize);
 

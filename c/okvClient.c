@@ -8,12 +8,14 @@ rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
 EVP_CIPHER_CTX *ctx;
 
+
 //using globals for these is a hack
 //doing it to avoid dealing with cgo pointer passing stuff
 uint8_t *dpfQueryA;
 uint8_t *dpfQueryB;
 int queriesSet;
 uint8_t *outData;
+int dbSize;
 
 int initializeClient(){
         //set fixed key
@@ -25,6 +27,7 @@ int initializeClient(){
     EVP_CIPHER_CTX_set_padding(ctx, 0);
     
     queriesSet = 0;
+    dbSize = 0;
     
     return 0;
 }
@@ -54,6 +57,9 @@ void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB){
     rowId = &newRow.rowID;
     keyA = &newKeyA;
     keyB = &newKeyB;
+    
+    db[dbSize] = newRow;
+    dbSize += 1;
 }
 
 void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize){
@@ -79,6 +85,11 @@ void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySiz
 void addIndex(int index){
     pendingRow.index = index;
 }
+
+void getVirtualAddress(int index, uint8_t *virtualAddress){
+    virtualAddress = (uint8_t*)&(db[index].rowID);
+}
+
 
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB){
     EVP_CIPHER_CTX *ctxA;

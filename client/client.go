@@ -20,40 +20,266 @@ serverA := "127.0.0.1:4443"
 serverB := "127.0.0.1:4442"
 auditor := "127.0.0.1:4444"
 
+conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+
 func main() {
     log.SetFlags(log.Lshortfile)
     
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
+    C.initializeClient()
+    
+    //TODO test operations go here
+    
+    for i:= 0; i < 1000; i++ {
+        addRow(25)
+        if i % 100 == 0 {
+            log.Println("added 100 rows to db")
+        }
     }
-    
-    
-    var indexes []int
-    var ids [][16]byte
-    var keysA [][16]byte
-    var keysB [][16]byte
+}
 
-    conn, err := tls.Dial("tcp", serverA, conf)
+//functions corresponding to the okvClient.h functions 
+//to act as wrappers and do the network communication
+
+//if needed, consider splitting communication with each
+//server into a different goroutine so it can happen in parallel
+
+func addRow(dataSize int) {
+    connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
         return
     }
-    defer conn.Close()
-
-    n, err := conn.Write([]byte("hello\n"))
+    defer connA.Close()
+    connB, err := tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connB.Close()
+    
+    //allocate space to hold return values
+    rowAKey := C.malloc(16)
+    rowBKey := C.malloc(16)
+    rowId := C.malloc(16)
+    
+    //Call c function to get the row prepared
+    C.prepNewRow(C.int(dataSize), rowId, rowAKey, rowBKey)    
+    
+    //write the data to each connection
+    //1 byte connection type 1
+    connType := make([]byte, 1)
+    connType[0] = 1
+    n, err := connA.Write(connType)
     if err != nil {
         log.Println(n, err)
         return
     }
-
-    buf := make([]byte, 100)
-    n, err = conn.Read(buf)
+    n, err := connB.Write(connType)
     if err != nil {
         log.Println(n, err)
         return
     }
-
-    println(string(buf[:n]))
+    
+    //16 bytes rowId
+    sendRowId := C.GoBytes(rowId, 16)
+    n, err := connA.Write(sendRowId)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err := connB.Write(sendRowId)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //4 bytes dataSize
+    sendDataSize := C.int(dataSize)
+    n, err := connA.Write(sendDataSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err := connB.Write(sendDataSize)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //16 bytes key
+    n, err := connA.Write(C.GoBytes(rowAKey, 16))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err := connB.Write(C.GoBytes(rowBKey, 16))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    newIndex := make([]byte, 4)
+    //read back the new index number
+    for count := 0; count < 4 {
+        n, err= conn.Read(newIndex[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    
+    C.addIndex(C.int(newIndex))
 }
 
-func newRow
+func readRow(localIndex int) ([]byte){
+    connA, err := tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connA.Close()
+    connB, err := tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connB.Close()
+    
+    //1 byte connection type 2
+    connType := make([]byte, 1)
+    connType[0] = 2
+    n, err := connA.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err = connB.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write index 4 bytes
+    sendIndex := C.int(localIndex)
+    n, err = connA.Write(sendIndex)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err = connB.Write(sendIndex)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write virtual address, 16 bytes
+    virtAddr := make([]byte, 16)
+    C.getVirtualAddress(localIndex, (*C.uchar)(&virtAddr[0]))
+    n, err = connA.Write(virtAddr)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err = connB.Write(virtAddr)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //read seed
+    seedA := make([]byte, 16)
+    seedB := make([]byte, 16)
+    for count := 0; count < 16 {
+        n, err= connA.Read(seedA[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    for count := 0; count < 16 {
+        n, err= connB.Read(seedB[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    
+    //read data
+    size := C.db[localIndex].dataSize
+    dataA := make([]byte, size)
+    dataB := make([]byte, size)
+    //read back the new index number
+    for count := 0; count < size {
+        n, err= conn.Read(dataA[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    for count := 0; count < size {
+        n, err= conn.Read(dataB[count:])
+        if err != nil {
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    
+    //decrypt
+    //void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);
+    C.decryptRow(C.int(localIndex), (*C.uchar)(&dataA[0]), (*C.uchar)(&dataB[0]), (*C.uchar)(&seedA[0]), (*C.uchar)(&seedB[0]))
+
+    return C.GoBytes(C.outData, size)
+}
+
+//TODO
+func writeRow(localIndex int, data []byte) {
+    connA, err := tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connA.Close()
+    connB, err := tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connB.Close()
+    
+    //1 byte connection type 3
+    connType := make([]byte, 1)
+    connType[0] = 3
+    n, err := connA.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err = connB.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write dataTransferSize
+    
+    //write dataSize
+    
+    //read seed and layers from server A
+    
+    //send layers to auditor
+    
+    //send userbits to auditor
+    
+    //send nonzero vectors to auditor
+    
+    //read success bit
+}
+
+func writeRowA()

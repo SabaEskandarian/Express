@@ -20,6 +20,8 @@ import (
     "unsafe"
 )
 
+auditor := "127.0.0.1:4444"
+
 func main() {
     log.SetFlags(log.Lshortfile)
     
@@ -70,53 +72,82 @@ func handleConnection(conn net.Conn, leader int) {
         log.Println(err)
         log.Println(n)
     }
+    
+    count := 0
+
     if connType[0] == 1 { //register row
 
         rowId:=make([]byte, 16)
         dataSize:=make([]byte, 4)
         rowKey:=make([]byte, 16)
         
+        count = 0
         //read rowId
-        n, err= conn.Read(rowId)
-        if err != nil || n != 16{
-            log.Println(err)
-            log.Println(n)
+        for count < 16 {
+            n, err= conn.Read(rowId[count:])
+            if err != nil {
+                log.Println(err)
+                log.Println(n)
+            }
+            count += n
         }
         
-        //read dataSize
-        n, err= conn.Read(dataSize)
-        if err != nil || n != 4{
-            log.Println(err)
-            log.Println(n)
+        count = 0
+        //read dataSize 
+        for count < 4 {
+            n, err= conn.Read(dataSize[count:])
+            if err != nil {
+                log.Println(err)
+                log.Println(n)
+            }
+            count += n
         }
+        
+        count = 0
         //read rowKey
-        n, err= conn.Read(rowKey)
-        if err != nil || n != 16{
-            log.Println(err)
-            log.Println(n)
+        for count < 16 {
+            n, err= conn.Read(rowKey[count:])
+            if err != nil {
+                log.Println(err)
+                log.Println(n)
+            }
+            count += n
         }
         //call C command to register row
         newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(dataSize)), (*C.uchar)(&rowKey[0]))
         
-        //TODO: send the newIndex number back
+        //send the newIndex number back
+        n, err=conn.Write(newIndex)
+        if err != nil {
+            log.Println(n, err)
+            return
+        }
         
     } else if connType[0] == 2 { //read
         
         index:= make([]byte, 4)
         rowId:= make([]byte, 16)
         
+        count = 0
         //read index
-        n, err= conn.Read(index)
-        if err != nil || n != 16{
-            log.Println(err)
-            log.Println(n)
+        for count < 4 {
+            n, err= conn.Read(index[count:])
+            if err != nil{
+                log.Println(err)
+                log.Println(n)
+            }
+            count += n
         }
         
+        count = 0
         //read virtual address
-        n, err= conn.Read(rowId)
-        if err != nil || n != 16{
-            log.Println(err)
-            log.Println(n)
+        for count < 16 {
+            n, err= conn.Read(rowId[count:])
+            if err != nil{
+                log.Println(err)
+                log.Println(n)
+            }
+            count += n
         }
         
         //get data size
@@ -155,12 +186,29 @@ func handleWrite(conn net.Conn, leader int) {
     dataTransferSize:= 0 //how big the query from the user is
     dataSize := 0 //how big the data in a row is
     
-    //TODO read the two values above
-    
-    //TODO: note to self, some of the reads in this file need to be wrapped in a loop to make sure the whole input is read
-    
+    count := 0
+    //read dataTransferSize
+    for count < 4 {
+        n, err= conn.Read(dataTransferSize[count:])
+        if err != nil{
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+    count = 0
+    //read dataSize
+    for count < 4 {
+        n, err= conn.Read(dataSize[count:])
+        if err != nil{
+            log.Println(err)
+            log.Println(n)
+        }
+        count += n
+    }
+        
     //get the input
-    count:= 0
+    count= 0
     input := make([]byte, dataTransferSize)
     for count < dataTransferSize {
         n, err:= conn.Read(input[count:])
@@ -182,7 +230,12 @@ func handleWrite(conn net.Conn, leader int) {
             return
         }
         
-        //TODO also send number of layers
+        //also send number of layers
+        n, err=conn.Write(C.layers)
+        if err != nil {
+            log.Println(n, err)
+            return
+        }
     }
     
     //process query
@@ -193,7 +246,7 @@ func handleWrite(conn net.Conn, leader int) {
          InsecureSkipVerify: true,
     }
 
-    conn2, err := tls.Dial("tcp", "127.0.0.1:4444", conf)
+    conn2, err := tls.Dial("tcp", auditor, conf)
     if err != nil {
         log.Println(err)
         return
