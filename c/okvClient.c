@@ -48,19 +48,19 @@ void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB){
 
     if(!(newRow.keyA = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(newRow.keyA, EVP_aes_128_ecb(), NULL, &newKeyA, NULL))
+    if(1 != EVP_EncryptInit_ex(newRow.keyA, EVP_aes_128_ecb(), NULL, (char*)&newKeyA, NULL))
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRow.keyA, 0);
     
     if(!(newRow.keyB = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(newRow.keyB, EVP_aes_128_ecb(), NULL, &newKeyB, NULL))
+    if(1 != EVP_EncryptInit_ex(newRow.keyB, EVP_aes_128_ecb(), NULL, (char*)&newKeyB, NULL))
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRow.keyB, 0);
     
-    rowId = &newRow.rowID;
-    keyA = &newKeyA;
-    keyB = &newKeyB;
+    rowId = (uint8_t*)&newRow.rowID;
+    keyA = (uint8_t*)&newKeyA;
+    keyB = (uint8_t*)&newKeyB;
     
     db[dbSize] = newRow;
     dbSize += 1;

@@ -22,6 +22,8 @@ import (
 
 var auditor string
 
+//TODO: make the servers generate the row ID by themselves from a seed and send it to the client
+
 func main() {
     auditor = "127.0.0.1:4444"
 
@@ -62,6 +64,19 @@ func main() {
         conn.SetDeadline(time.Time{})
         handleConnection(conn, leader)
     }
+}
+
+func byteToInt(myBytes []byte) (x int) {
+    x = int(myBytes[3]) << 24 + int(myBytes[2]) << 16 + int(myBytes[1]) << 8 + int(myBytes[0])
+    return
+}
+
+func intToByte(myInt int) (retBytes []byte){
+    retBytes[3] = byte((myInt >> 24) & 0xff)
+    retBytes[2] = byte((myInt >> 16) & 0xff)
+    retBytes[1] = byte((myInt >> 8) & 0xff)
+    retBytes[0] = byte(myInt & 0xff)
+    return
 }
 
 func handleConnection(conn net.Conn, leader int) {
@@ -119,7 +134,7 @@ func handleConnection(conn net.Conn, leader int) {
         newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(dataSize)), (*C.uchar)(&rowKey[0]))
         
         //send the newIndex number back
-        n, err=conn.Write(newIndex)
+        n, err=conn.Write(intToByte(int(newIndex)))
         if err != nil {
             log.Println(n, err)
             return
@@ -191,7 +206,7 @@ func handleWrite(conn net.Conn, leader int) {
     count := 0
     //read dataTransferSize
     for count < 4 {
-        n, err:= conn.Read(dataTransferSize[count:])
+        n, err:= conn.Read(intToByte(dataTransferSize)[count:])
         if err != nil{
             log.Println(err)
             log.Println(n)
@@ -201,7 +216,7 @@ func handleWrite(conn net.Conn, leader int) {
     count = 0
     //read dataSize
     for count < 4 {
-        n, err:= conn.Read(dataSize[count:])
+        n, err:= conn.Read(intToByte(dataSize)[count:])
         if err != nil{
             log.Println(err)
             log.Println(n)
@@ -233,7 +248,7 @@ func handleWrite(conn net.Conn, leader int) {
         }
         
         //also send number of layers
-        n, err=conn.Write(C.layers)
+        n, err=conn.Write(intToByte(int(C.layers)))
         if err != nil {
             log.Println(n, err)
             return
