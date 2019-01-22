@@ -20,9 +20,11 @@ import (
     "unsafe"
 )
 
-auditor := "127.0.0.1:4444"
+var auditor string
 
 func main() {
+    auditor = "127.0.0.1:4444"
+
     log.SetFlags(log.Lshortfile)
     
     leader := 0
@@ -189,7 +191,7 @@ func handleWrite(conn net.Conn, leader int) {
     count := 0
     //read dataTransferSize
     for count < 4 {
-        n, err= conn.Read(dataTransferSize[count:])
+        n, err:= conn.Read(dataTransferSize[count:])
         if err != nil{
             log.Println(err)
             log.Println(n)
@@ -199,7 +201,7 @@ func handleWrite(conn net.Conn, leader int) {
     count = 0
     //read dataSize
     for count < 4 {
-        n, err= conn.Read(dataSize[count:])
+        n, err:= conn.Read(dataSize[count:])
         if err != nil{
             log.Println(err)
             log.Println(n)

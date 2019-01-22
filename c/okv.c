@@ -63,7 +63,7 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     
     if(!(entry.rowKey = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(entry.rowKey, EVP_aes_128_ctr(), NULL, &realRowKey, NULL))
+    if(1 != EVP_EncryptInit_ex(entry.rowKey, EVP_aes_128_ctr(), NULL, (uint8_t*)&realRowKey, NULL))
         printf("errors occured in init\n");
     
     entry.rowID = realRowId;

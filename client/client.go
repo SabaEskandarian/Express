@@ -16,15 +16,17 @@ import (
     "crypto/tls"
 )
 
-serverA := "127.0.0.1:4443"
-serverB := "127.0.0.1:4442"
-auditor := "127.0.0.1:4444"
-
-conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
+var serverA string
+var serverB string
+var auditor string
 
 func main() {
+    
+    serverA = "127.0.0.1:4443"
+    serverB = "127.0.0.1:4442"
+    auditor = "127.0.0.1:4444"
+    
+    
     log.SetFlags(log.Lshortfile)
     
     C.initializeClient()
@@ -46,6 +48,10 @@ func main() {
 //server into a different goroutine so it can happen in parallel
 
 func addRow(dataSize int) {
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+    
     connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
@@ -122,7 +128,7 @@ func addRow(dataSize int) {
     
     newIndex := make([]byte, 4)
     //read back the new index number
-    for count := 0; count < 4 {
+    for count := 0; count < 4; {
         n, err= conn.Read(newIndex[count:])
         if err != nil {
             log.Println(err)
@@ -135,6 +141,10 @@ func addRow(dataSize int) {
 }
 
 func readRow(localIndex int) ([]byte){
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+    
     connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
@@ -192,7 +202,7 @@ func readRow(localIndex int) ([]byte){
     //read seed
     seedA := make([]byte, 16)
     seedB := make([]byte, 16)
-    for count := 0; count < 16 {
+    for count := 0; count < 16; {
         n, err= connA.Read(seedA[count:])
         if err != nil {
             log.Println(err)
@@ -200,7 +210,7 @@ func readRow(localIndex int) ([]byte){
         }
         count += n
     }
-    for count := 0; count < 16 {
+    for count := 0; count < 16; {
         n, err= connB.Read(seedB[count:])
         if err != nil {
             log.Println(err)
@@ -214,7 +224,7 @@ func readRow(localIndex int) ([]byte){
     dataA := make([]byte, size)
     dataB := make([]byte, size)
     //read back the new index number
-    for count := 0; count < size {
+    for count := 0; count < size; {
         n, err= conn.Read(dataA[count:])
         if err != nil {
             log.Println(err)
@@ -222,7 +232,7 @@ func readRow(localIndex int) ([]byte){
         }
         count += n
     }
-    for count := 0; count < size {
+    for count := 0; count < size; {
         n, err= conn.Read(dataB[count:])
         if err != nil {
             log.Println(err)
@@ -253,6 +263,9 @@ func writeRow(localIndex int, data []byte) {
 }
 
 func writeRowServerA(dataSize, querySize int) {
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
     connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
@@ -295,7 +308,7 @@ func writeRowServerA(dataSize, querySize int) {
     
     //read seed and layers from server A
     seed := make([]byte, 16)
-    for count := 0; count < 16 {
+    for count := 0; count < 16; {
         n, err= connA.Read(seed[count:])
         if err != nil {
             log.Println(err)
@@ -304,7 +317,7 @@ func writeRowServerA(dataSize, querySize int) {
         count += n
     }
     layers := make([]byte, 4)
-    for count := 0; count < 4 {
+    for count := 0; count < 4; {
         n, err= connA.Read(layers[count:])
         if err != nil {
             log.Println(err)
@@ -318,6 +331,9 @@ func writeRowServerA(dataSize, querySize int) {
 }
 
 func writeRowServerB(dataSize, querySize int) {
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
     
     connB, err := tls.Dial("tcp", serverB, conf)
     if err != nil {
@@ -362,6 +378,9 @@ func writeRowServerB(dataSize, querySize int) {
 }
 
 func writeRowAuditor(index int, layers C.int, seed [16]byte) {
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
     
     //connect to auditor
     conn, err := tls.Dial("tcp", auditor, conf)

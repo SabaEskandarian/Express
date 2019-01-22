@@ -98,7 +98,7 @@ void prepAudit(int index, int layers, uint8_t *seed){
 
 
 void addIndex(int index){
-    pendingRow.index = index;
+    pendingRow->index = index;
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){
@@ -109,6 +109,7 @@ void getVirtualAddress(int index, uint8_t *virtualAddress){
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB){
     EVP_CIPHER_CTX *ctxA;
     EVP_CIPHER_CTX *ctxB;
+    int len;
     
     uint8_t *maskA = (uint8_t*) malloc(db[localIndex].dataSize+16);
     uint8_t *maskB = (uint8_t*) malloc(db[localIndex].dataSize+16);
@@ -118,14 +119,14 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
     //get the masks
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
             memcpy(&seedTempA[16*j], &seedA, 16);
-        }
-        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskA, &len, seedTempA, db[localIndex].dataSize))
-            printf("errors occured in rerandomization of entry %d\n", i);
+    }
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyA, maskA, &len, seedTempA, db[localIndex].dataSize))
+        printf("errors occured in rerandomization of entry %d\n", localIndex);
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
             memcpy(&seedTempB[16*j], &seedB, 16);
-        }
-        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskB, &len, seedTempB, db[localIndex].dataSize))
-            printf("errors occured in rerandomization of entry %d\n", i);
+    }
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyB, maskB, &len, seedTempB, db[localIndex].dataSize))
+        printf("errors occured in rerandomization of entry %d\n", localIndex);
         
     //this will have to be freed in the calling code
     outData = (uint8_t*) malloc(db[localIndex].dataSize);
