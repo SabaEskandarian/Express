@@ -1,4 +1,5 @@
 #include "okv.h"
+#include "okvClient.h"
 #include <openssl/rand.h>
 #include <omp.h>
 
@@ -19,6 +20,7 @@ uint8_t *dpfQueryA;
 uint8_t *dpfQueryB;
 int queriesSet;
 uint8_t *outData;
+int outDataSet;
 int dbSize;
 
 int initializeClient(){
@@ -31,6 +33,7 @@ int initializeClient(){
     EVP_CIPHER_CTX_set_padding(ctx, 0);
     
     queriesSet = 0;
+    outDataSet = 0;
     dbSize = 0;
     
     return 0;
@@ -38,31 +41,35 @@ int initializeClient(){
 
 
 void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB){
+
     rowData newRow;
-    *pendingRow = newRow;    
     newRow.dataSize = dataSize;
-    
+
     newRow.rowID = getRandomBlock();
     uint128_t newKeyA = getRandomBlock();
     uint128_t newKeyB = getRandomBlock();
+    //print_block(newKeyA);
+    //print_block(newKeyB);
+    //printf("\n");
 
     if(!(newRow.keyA = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(newRow.keyA, EVP_aes_128_ecb(), NULL, (char*)&newKeyA, NULL))
+    if(1 != EVP_EncryptInit_ex(newRow.keyA, EVP_aes_128_ecb(), NULL, (uint8_t*)&newKeyA, NULL))
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRow.keyA, 0);
     
     if(!(newRow.keyB = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(newRow.keyB, EVP_aes_128_ecb(), NULL, (char*)&newKeyB, NULL))
+    if(1 != EVP_EncryptInit_ex(newRow.keyB, EVP_aes_128_ecb(), NULL, (uint8_t*)&newKeyB, NULL))
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRow.keyB, 0);
     
-    rowId = (uint8_t*)&newRow.rowID;
-    keyA = (uint8_t*)&newKeyA;
-    keyB = (uint8_t*)&newKeyB;
+    memcpy(rowId, &newRow.rowID, 16);
+    memcpy(keyA, &newKeyA, 16);
+    memcpy(keyB, &newKeyB, 16);
     
     db[dbSize] = newRow;
+    pendingRow = &db[dbSize];
     dbSize += 1;
 }
 
@@ -102,34 +109,49 @@ void addIndex(int index){
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){
-    virtualAddress = (uint8_t*)&(db[index].rowID);
+    memcpy(virtualAddress, &db[index].rowID, 16);
 }
 
 
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB){
-    EVP_CIPHER_CTX *ctxA;
-    EVP_CIPHER_CTX *ctxB;
     int len;
+    if(outDataSet){
+        free(outData);
+        outDataSet = 0;
+    }
     
     uint8_t *maskA = (uint8_t*) malloc(db[localIndex].dataSize+16);
     uint8_t *maskB = (uint8_t*) malloc(db[localIndex].dataSize+16);
     uint8_t *seedTempA = (uint8_t*) malloc(db[localIndex].dataSize+16);
     uint8_t *seedTempB = (uint8_t*) malloc(db[localIndex].dataSize+16);
     
+    //uint128_t test = 0;
+    //memcpy(&test, seedTempA, 16);
+    //print_block(test);
+    
     //get the masks
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
-            memcpy(&seedTempA[16*j], &seedA, 16);
+            memcpy(&seedTempA[16*j], seedA, 16);
+            seedTempA[16*j] = seedTempA[16*j] ^ j;
     }
-    if(1 != EVP_EncryptUpdate(db[localIndex].keyA, maskA, &len, seedTempA, db[localIndex].dataSize))
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyA, maskA, &len, seedTempA, db[localIndex].dataSize+16))
         printf("errors occured in rerandomization of entry %d\n", localIndex);
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
-            memcpy(&seedTempB[16*j], &seedB, 16);
+            memcpy(&seedTempB[16*j], seedB, 16);
+            seedTempB[16*j] = seedTempB[16*j] ^ j;
     }
-    if(1 != EVP_EncryptUpdate(db[localIndex].keyB, maskB, &len, seedTempB, db[localIndex].dataSize))
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyB, maskB, &len, seedTempB, db[localIndex].dataSize+16))
         printf("errors occured in rerandomization of entry %d\n", localIndex);
         
-    //this will have to be freed in the calling code
     outData = (uint8_t*) malloc(db[localIndex].dataSize);
+    //test
+    //test = 0;
+    //memcpy(&test, seedTempA, 16);
+    //print_block(test);
+    //memcpy(&test, seedTempB, 16);
+    //print_block(test);
+    //printf("\n");
+    
     for(int i = 0; i < db[localIndex].dataSize; i++){
         outData[i] = dataA[i] ^ dataB[i] ^ maskA[i] ^ maskB[i];
     }
@@ -138,4 +160,26 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
     free(maskB);
     free(seedTempA);
     free(seedTempB);
+    outDataSet = 1;
+}
+
+int testing(){
+    
+    initializeClient();
+    uint8_t *rowAKey = (uint8_t*) malloc(16);
+    uint8_t *rowBKey = (uint8_t*) malloc(16);
+    uint8_t *rowId = (uint8_t*) malloc(16);
+    uint8_t *retrieveRowId = (uint8_t*) malloc(16);
+    for(int i = 0; i < 30; i++){
+            prepNewRow(25, rowId, rowAKey, rowBKey);
+            print_block(db[i].rowID);
+            //print_block();
+            printf("\n");
+            
+            
+    }
+    //for(int i = 0; i < 30; i++){
+    //   print_block(db[i].rowID);     
+    //}
+
 }

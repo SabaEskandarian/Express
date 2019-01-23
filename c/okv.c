@@ -37,6 +37,8 @@ int initializeServer(){
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(rerandCtx, 0);
     
+    memset(&rerandSeed, 0, 16);
+    
     dbSize = 0;
     layers = 1;
     rerandCounter = 0;
@@ -51,6 +53,9 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     uint128_t realRowKey;
     memcpy(&realRowKey, rowKey, 16);
     
+    //print_block(realRowKey);
+    //printf("\n");
+    
     //check if rowId is taken in db and return 1 if that happens
     //this could be made more efficient, but I don't really care about optimizing registration time atm
     for(int i = 0; i < dbSize; i++){
@@ -63,8 +68,9 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     
     if(!(entry.rowKey = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
-    if(1 != EVP_EncryptInit_ex(entry.rowKey, EVP_aes_128_ctr(), NULL, (uint8_t*)&realRowKey, NULL))
+    if(1 != EVP_EncryptInit_ex(entry.rowKey, EVP_aes_128_ecb(), NULL, (uint8_t*)&realRowKey, NULL))
         printf("errors occured in init\n");
+    EVP_CIPHER_CTX_set_padding(entry.rowKey, 0);
     
     entry.rowID = realRowId;
     entry.dataSize = dataSize;
@@ -72,9 +78,36 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     entry.data = malloc(dataSize);
     entry.mask = malloc(dataSize);
     memset(entry.mask, 0 , dataSize);
+    memset(entry.data, 0 , dataSize);
     db[dbSize] = entry;
+    int i = dbSize;//to make code below work without changing stuff
     dbSize = dbSize + 1;
     layers = ceil(log2(dbSize));
+    
+    
+    //now do the encryption/rerandomization for this entry so it can be retrieved normally
+    uint8_t* maskTemp = (uint8_t*) malloc(dataSize+16);
+    uint8_t* seedTemp = (uint8_t*) malloc(dataSize+16);
+    int len;
+    //get rerandomization mask
+    for(int j = 0; j < (db[i].dataSize+16)/16; j++){
+        memcpy(&seedTemp[16*j], &rerandSeed, 16);
+        seedTemp[16*j] = seedTemp[16*j] ^ j;
+    }
+    if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, dataSize+16))
+        printf("errors occured in rerandomization of entry %d\n", i);
+    //test
+    //uint128_t test = 0;
+    //memcpy(&test, seedTemp, 16);
+    //print_block(test);
+    //xor data into db and rerandomize db entry
+    for(int j = 0; j < dataSize; j++){
+        db[i].data[j] = db[i].data[j] ^ maskTemp[j];
+        db[i].mask[j] = maskTemp[j];
+    }
+    free(maskTemp);
+    free(seedTemp);
+    
     return dbSize-1;
 }
 
@@ -113,8 +146,9 @@ void processQuery(void){
         //get rerandomization mask
         for(int j = 0; j < (db[i].dataSize+16)/16; j++){
             memcpy(&seedTemp[16*j], &rerandSeed, 16);
+            seedTemp[16*j] = seedTemp[16*j] ^ j;
         }
-        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, ds))
+        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, ds+16))
             printf("errors occured in rerandomization of entry %d\n", i);
         
         //xor data into db and rerandomize db entry
@@ -154,7 +188,7 @@ int readEntry(uint8_t *id, int index, uint8_t *data, uint8_t *seed){
     uint128_t realId;
     memcpy(&realId, id, 16);
     if(db[index].rowID == realId){
-        memcpy(data, db[index].data, sizeof(db[index].dataSize));
+        memcpy(data, db[index].data, db[index].dataSize);
         memcpy(seed, &rerandSeed, 16);
         return db[index].dataSize;
     }

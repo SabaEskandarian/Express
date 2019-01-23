@@ -16,7 +16,6 @@ import (
     "net"
     "os"
     "time"
-    "io"
     "unsafe"
 )
 
@@ -72,6 +71,7 @@ func byteToInt(myBytes []byte) (x int) {
 }
 
 func intToByte(myInt int) (retBytes []byte){
+    retBytes = make([]byte, 4)
     retBytes[3] = byte((myInt >> 24) & 0xff)
     retBytes[2] = byte((myInt >> 16) & 0xff)
     retBytes[1] = byte((myInt >> 8) & 0xff)
@@ -85,7 +85,7 @@ func handleConnection(conn net.Conn, leader int) {
     //determine what kind of connection this is
     connType := make([]byte, 1)
     n, err:= conn.Read(connType)
-    if err != nil {
+    if err != nil && n != 1 {
         log.Println(err)
         log.Println(n)
     }
@@ -102,36 +102,38 @@ func handleConnection(conn net.Conn, leader int) {
         //read rowId
         for count < 16 {
             n, err= conn.Read(rowId[count:])
-            if err != nil {
+            count += n
+            if err != nil && count != 16{
                 log.Println(err)
                 log.Println(n)
             }
-            count += n
         }
         
         count = 0
         //read dataSize 
         for count < 4 {
             n, err= conn.Read(dataSize[count:])
-            if err != nil {
+            count += n
+            if err != nil && count != 4{
                 log.Println(err)
                 log.Println(n)
             }
-            count += n
         }
         
         count = 0
         //read rowKey
         for count < 16 {
             n, err= conn.Read(rowKey[count:])
-            if err != nil {
+            count += n
+            if err != nil && count != 16{
                 log.Println(err)
                 log.Println(n)
             }
-            count += n
         }
         //call C command to register row
-        newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(dataSize)), (*C.uchar)(&rowKey[0]))
+        newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
+        //log.Println(rowKey) 
+        //log.Println()
         
         //send the newIndex number back
         n, err=conn.Write(intToByte(int(newIndex)))
@@ -139,6 +141,9 @@ func handleConnection(conn net.Conn, leader int) {
             log.Println(n, err)
             return
         }
+        
+        //log.Println(dataSize)
+        //log.Println(rowId)
         
     } else if connType[0] == 2 { //read
         
@@ -149,33 +154,38 @@ func handleConnection(conn net.Conn, leader int) {
         //read index
         for count < 4 {
             n, err= conn.Read(index[count:])
-            if err != nil{
+            count += n
+            if err != nil && count != 4{
                 log.Println(err)
                 log.Println(n)
             }
-            count += n
         }
         
         count = 0
         //read virtual address
         for count < 16 {
             n, err= conn.Read(rowId[count:])
-            if err != nil{
+            count += n
+            if err != nil && count != 16{  
                 log.Println(err)
                 log.Println(n)
             }
-            count += n
         }
         
         //get data size
-        size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(index)))
+        size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
+        //log.Println(index)
+        //log.Println(rowId)
+        //log.Println(size) 
         
         //make space for responses
         data := make([]byte, size)
         seed := make([]byte, 16)
         
         //get data
-        C.readEntry((*C.uchar)(&rowId[0]), C.int(ReadInt32Unsafe(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+        C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+        //log.Println(data)
+        //log.Println(seed) 
         
         //write seed
         n, err=conn.Write(seed)
@@ -207,21 +217,21 @@ func handleWrite(conn net.Conn, leader int) {
     //read dataTransferSize
     for count < 4 {
         n, err:= conn.Read(intToByte(dataTransferSize)[count:])
-        if err != nil{
+        count += n
+        if err != nil && count != 4{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     count = 0
     //read dataSize
     for count < 4 {
         n, err:= conn.Read(intToByte(dataSize)[count:])
-        if err != nil{
+        count += n
+        if err != nil && count != 4{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
         
     //get the input
@@ -229,13 +239,13 @@ func handleWrite(conn net.Conn, leader int) {
     input := make([]byte, dataTransferSize)
     for count < dataTransferSize {
         n, err:= conn.Read(input[count:])
-        if err != nil && err != io.EOF {
+        count += n
+        if err != nil && count != dataTransferSize {
             log.Println(err)
         }
-        count += n
     }
     
-    //register the input with c
+    //register the input with c  
     var auditSeed [16]byte
     auditSeed = C.registerQuery((*C.uchar)(&input[0]), C.int(dataSize), C.int(dataTransferSize))
     
@@ -281,7 +291,7 @@ func handleWrite(conn net.Conn, leader int) {
     //read auditor response and give an error if it doesn't accept
     auditResp := make([]byte, 1)
     n, err = conn.Read(auditResp)
-    if err != nil {
+    if err != nil && n != 1 {
         log.Println(n, err)
         return
     }
@@ -291,9 +301,4 @@ func handleWrite(conn net.Conn, leader int) {
     }
     
     return
-}
-
-//from stackexchange
-func ReadInt32Unsafe(b []byte) int32 {
-    return *(*int32)(unsafe.Pointer(&b[0]))
 }

@@ -4,7 +4,7 @@ package main
 
 
 /*
-#cgo LDFLAGS: -fopenmp -lcrypto -lm
+#cgo LDFLAGS: -fopenmp -lcrypto -lm 
 #include "../c/dpf.h"
 #include "../c/okvClient.h"
 #include "../c/dpf.c"
@@ -22,7 +22,7 @@ var serverB string
 var auditor string
 
 func main() {
-    
+     
     serverA = "127.0.0.1:4443"
     serverB = "127.0.0.1:4442"
     auditor = "127.0.0.1:4444"
@@ -34,12 +34,13 @@ func main() {
     
     //TODO test operations go here
     
-    for i:= 0; i < 1000; i++ {
-        addRow(25)
-        if i % 100 == 0 {
-            log.Println("added 100 rows to db")
-        }
+    for i:= 0; i < 30; i++ {
+        addRow(25) 
     }
+      
+    rowVal := readRow(13)
+    log.Println("rowVal is ")
+    log.Println(rowVal)
 }
 
 func byteToInt(myBytes []byte) (x int) {
@@ -48,6 +49,7 @@ func byteToInt(myBytes []byte) (x int) {
 }
 
 func intToByte(myInt int) (retBytes []byte){
+    retBytes = make([]byte, 4)
     retBytes[3] = byte((myInt >> 24) & 0xff)
     retBytes[2] = byte((myInt >> 16) & 0xff)
     retBytes[1] = byte((myInt >> 8) & 0xff)
@@ -87,9 +89,16 @@ func addRow(dataSize int) {
     //Call c function to get the row prepared
     C.prepNewRow(C.int(dataSize), rowId, rowAKey, rowBKey)
     
+    //log.Println(C.GoBytes(unsafe.Pointer(rowId), 16))
+    //log.Println(C.GoBytes(unsafe.Pointer(rowAKey), 16))
+    //log.Println(C.GoBytes(unsafe.Pointer(rowBKey), 16))
+    //log.Println(rowId)
+    //log.Println()
+
+    
     //write the data to each connection
     //1 byte connection type 1
-    connType := make([]byte, 1)
+    connType := make([]byte, 1) 
     connType[0] = 1
     n, err := connA.Write(connType)
     if err != nil {
@@ -139,16 +148,16 @@ func addRow(dataSize int) {
         log.Println(n, err)
         return
     }
-    
+        
     newIndex := make([]byte, 4)
     //read back the new index number
     for count := 0; count < 4; {
         n, err= connA.Read(newIndex[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != 4 {
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     
     C.addIndex(C.int(byteToInt(newIndex)))
@@ -194,8 +203,9 @@ func readRow(localIndex int) ([]byte){
     }
     
     //write virtual address, 16 bytes
-    virtAddr := make([]byte, 16)
-    C.getVirtualAddress(C.int(localIndex), (*C.uchar)(&virtAddr[0]))
+    //virtAddr := make([]byte, 16)
+    //C.getVirtualAddress(C.int(localIndex), (*C.uchar)(&virtAddr[0]))
+    virtAddr := C.GoBytes(unsafe.Pointer(&(C.db[localIndex].rowID)), 16)
     n, err = connA.Write(virtAddr)
     if err != nil {
         log.Println(n, err)
@@ -205,46 +215,52 @@ func readRow(localIndex int) ([]byte){
         log.Println(n, err)
     }
     
-    //read seed
+    //read seed  
     seedA := make([]byte, 16)
     seedB := make([]byte, 16)
     for count := 0; count < 16; {
         n, err= connA.Read(seedA[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != 16{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     for count := 0; count < 16; {
         n, err= connB.Read(seedB[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != 16{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     
-    //read data
+    //read data 
     size := C.db[localIndex].dataSize
     dataA := make([]byte, size)
     dataB := make([]byte, size)
     for count := 0; count < int(size); {
         n, err= connA.Read(dataA[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != int(size){
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     for count := 0; count < int(size); {
         n, err= connB.Read(dataB[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != int(size){
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
+    
+    //log.Println(dataA)
+    //log.Println(dataB)
+    //log.Println(seedA)
+    //log.Println(seedB)
+    //log.Println() 
     
     //decrypt
     //void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);
@@ -315,20 +331,20 @@ func writeRowServerA(dataSize, querySize int, localIndex int) {
     seed := make([]byte, 16)
     for count := 0; count < 16; {
         n, err= connA.Read(seed[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != 16{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     layers := make([]byte, 4)
     for count := 0; count < 4; {
         n, err= connA.Read(layers[count:])
-        if err != nil {
+        count += n
+        if err != nil && count != 4{
             log.Println(err)
             log.Println(n)
         }
-        count += n
     }
     
     writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
@@ -422,7 +438,7 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     //read success bit
     auditResp := make([]byte, 1)
     n, err = conn.Read(auditResp)
-    if err != nil {
+    if err != nil && n != 1{
         log.Println(n, err)
         return
     }

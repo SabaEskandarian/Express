@@ -107,7 +107,7 @@ func handleConnection(conn net.Conn, flag chan int) {
     if UorS[0] == 2 { //user
         
         n, err:= conn.Read(layers[2:])
-        if err != nil || n!=1 {
+        if err != nil && n!=1 {
             log.Println(err)
             log.Println(n)
         }
@@ -116,24 +116,24 @@ func handleConnection(conn net.Conn, flag chan int) {
         userBits = make([]byte, dataTransferSize)
         for count < int(dataTransferSize) {
             n, err:= conn.Read(userBits[count:])
-            if err != nil && err != io.EOF {
+            count += n
+            if err != nil && err != io.EOF && count != int(dataTransferSize) {
                 log.Println(err)
             }
-            count += n
         }
         count = 0
         dataTransferSize = layers[2]*128
         userNonZeros = make([]byte, dataTransferSize)
         for count < int(dataTransferSize) {
             n, err:= conn.Read(userNonZeros[count:])
-            if err != nil && err != io.EOF {
+            count += n
+            if err != nil && err != io.EOF && count != int(dataTransferSize) {
                 log.Println(err)
             }
-            count += n
         }
     } else if UorS[0] == 1 { //server A
         n, err:= conn.Read(layers[1:2])
-        if err != nil {
+        if err != nil && n != 1{
             log.Println(err)
             log.Println(n)
 
@@ -143,14 +143,14 @@ func handleConnection(conn net.Conn, flag chan int) {
         serverAInput = make([]byte, dataTransferSize)
         for count < int(dataTransferSize) {
             n, err:= conn.Read(serverAInput[count:])
-            if err != nil && err != io.EOF {
+            count += n
+            if err != nil && err != io.EOF && count != int(dataTransferSize){
                 log.Println(err)
             }
-            count += n
         }
     } else if UorS[0] == 0 { //server B
         n, err:= conn.Read(layers[:1])
-        if err != nil {
+        if err != nil && n != 1{
             log.Println(err)
             log.Println(n)
 
@@ -160,10 +160,10 @@ func handleConnection(conn net.Conn, flag chan int) {
         serverBInput = make([]byte, dataTransferSize)
         for count < int(dataTransferSize) {
             n, err:= conn.Read(serverAInput[count:])
-            if err != nil && err != io.EOF {
+            count += n
+            if err != nil && err != io.EOF && count != int(dataTransferSize) {
                 log.Println(err)
             }
-            count += n
         }
     }
     
