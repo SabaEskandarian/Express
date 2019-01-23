@@ -15,10 +15,10 @@ typedef struct{
 int initializeClient();
 
 //prepare data to add an entry
-void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB);
+void prepNewRow(int dataSize, uint8_t *keyA, uint8_t *keyB);
 
-//add index to most recent row
-void addIndex(int index);
+//add index and row id to most recent row
+void addAddr(int index, uint8_t *rowId);
 
 //get the virtual address corresponding to a given index
 void getVirtualAddress(int index, uint8_t *virtualAddress);

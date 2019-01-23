@@ -40,12 +40,11 @@ int initializeClient(){
 }
 
 
-void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB){
+void prepNewRow(int dataSize, uint8_t *keyA, uint8_t *keyB){
 
     rowData newRow;
     newRow.dataSize = dataSize;
 
-    newRow.rowID = getRandomBlock();
     uint128_t newKeyA = getRandomBlock();
     uint128_t newKeyB = getRandomBlock();
     //print_block(newKeyA);
@@ -64,7 +63,6 @@ void prepNewRow(int dataSize, uint8_t *rowId, uint8_t *keyA, uint8_t *keyB){
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRow.keyB, 0);
     
-    memcpy(rowId, &newRow.rowID, 16);
     memcpy(keyA, &newKeyA, 16);
     memcpy(keyB, &newKeyB, 16);
     
@@ -104,8 +102,9 @@ void prepAudit(int index, int layers, uint8_t *seed){
 }
 
 
-void addIndex(int index){
+void addAddr(int index, uint8_t *rowId){
     pendingRow->index = index;
+    memcpy(&(pendingRow->rowID), rowId, 16);
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){
@@ -125,10 +124,6 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
     uint8_t *seedTempA = (uint8_t*) malloc(db[localIndex].dataSize+16);
     uint8_t *seedTempB = (uint8_t*) malloc(db[localIndex].dataSize+16);
     
-    //uint128_t test = 0;
-    //memcpy(&test, seedTempA, 16);
-    //print_block(test);
-    
     //get the masks
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
             memcpy(&seedTempA[16*j], seedA, 16);
@@ -144,13 +139,6 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
         printf("errors occured in rerandomization of entry %d\n", localIndex);
         
     outData = (uint8_t*) malloc(db[localIndex].dataSize);
-    //test
-    //test = 0;
-    //memcpy(&test, seedTempA, 16);
-    //print_block(test);
-    //memcpy(&test, seedTempB, 16);
-    //print_block(test);
-    //printf("\n");
     
     for(int i = 0; i < db[localIndex].dataSize; i++){
         outData[i] = dataA[i] ^ dataB[i] ^ maskA[i] ^ maskB[i];
@@ -166,20 +154,5 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
 int testing(){
     
     initializeClient();
-    uint8_t *rowAKey = (uint8_t*) malloc(16);
-    uint8_t *rowBKey = (uint8_t*) malloc(16);
-    uint8_t *rowId = (uint8_t*) malloc(16);
-    uint8_t *retrieveRowId = (uint8_t*) malloc(16);
-    for(int i = 0; i < 30; i++){
-            prepNewRow(25, rowId, rowAKey, rowBKey);
-            print_block(db[i].rowID);
-            //print_block();
-            printf("\n");
-            
-            
-    }
-    //for(int i = 0; i < 30; i++){
-    //   print_block(db[i].rowID);     
-    //}
 
 }

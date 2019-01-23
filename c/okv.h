@@ -14,7 +14,7 @@ typedef struct{
 
 int initializeServer();
 
-int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey);
+int processnewEntry(int dataSize, uint8_t *rowKey);
 
 uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSize);
 

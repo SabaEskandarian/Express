@@ -94,20 +94,8 @@ func handleConnection(conn net.Conn, leader int) {
 
     if connType[0] == 1 { //register row
 
-        rowId:=make([]byte, 16)
         dataSize:=make([]byte, 4)
         rowKey:=make([]byte, 16)
-        
-        count = 0
-        //read rowId
-        for count < 16 {
-            n, err= conn.Read(rowId[count:])
-            count += n
-            if err != nil && count != 16{
-                log.Println(err)
-                log.Println(n)
-            }
-        }
         
         count = 0
         //read dataSize 
@@ -131,7 +119,7 @@ func handleConnection(conn net.Conn, leader int) {
             }
         }
         //call C command to register row
-        newIndex:= C.processnewEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
+        newIndex:= C.processnewEntry(C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
         //log.Println(rowKey) 
         //log.Println()
         
@@ -141,6 +129,16 @@ func handleConnection(conn net.Conn, leader int) {
             log.Println(n, err)
             return
         }
+        
+        if leader == 1 {  
+            //send the rowId back
+            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+        }
+
         
         //log.Println(dataSize)
         //log.Println(rowId)

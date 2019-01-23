@@ -84,10 +84,9 @@ func addRow(dataSize int) {
     //allocate space to hold return values
     rowAKey := (*C.uchar)(C.malloc(16))
     rowBKey := (*C.uchar)(C.malloc(16))
-    rowId := (*C.uchar)(C.malloc(16))
     
     //Call c function to get the row prepared
-    C.prepNewRow(C.int(dataSize), rowId, rowAKey, rowBKey)
+    C.prepNewRow(C.int(dataSize), rowAKey, rowBKey)
     
     //log.Println(C.GoBytes(unsafe.Pointer(rowId), 16))
     //log.Println(C.GoBytes(unsafe.Pointer(rowAKey), 16))
@@ -106,19 +105,6 @@ func addRow(dataSize int) {
         return
     }
     n, err = connB.Write(connType)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //16 bytes rowId
-    sendRowId := C.GoBytes(unsafe.Pointer(rowId), 16)
-    n, err = connA.Write(sendRowId)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    n, err = connB.Write(sendRowId)
     if err != nil {
         log.Println(n, err)
         return
@@ -160,7 +146,18 @@ func addRow(dataSize int) {
         }
     }
     
-    C.addIndex(C.int(byteToInt(newIndex)))
+    newRowID := make([]byte, 16)
+    //read back the row id
+    for count := 0; count < 16; {
+        n, err= connA.Read(newRowID[count:])
+        count += n
+        if err != nil && count != 16 {
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    C.addAddr(C.int(byteToInt(newIndex)), (*C.uchar)(&newRowID[0]))
 }
 
 func readRow(localIndex int) ([]byte){

@@ -17,6 +17,9 @@ uint128_t rerandSeed;
 int pqDataSize;
 EVP_CIPHER_CTX *ctx;
 EVP_CIPHER_CTX *rerandCtx;
+EVP_CIPHER_CTX *newRowCtx;
+
+uint8_t *tempRowId;
 
 int initializeServer(){
     
@@ -33,11 +36,22 @@ int initializeServer(){
     //uint128_t aeskey2 = getRandomBlock();
     //next line just for testing. Servers would generate and share a secret key here in production
     unsigned char *aeskey2 = (unsigned char*) "2123456789123456";
-    if(1 != EVP_EncryptInit_ex(rerandCtx, EVP_aes_128_ecb(), NULL, (uint8_t*) &aeskey2, NULL))
+    if(1 != EVP_EncryptInit_ex(rerandCtx, EVP_aes_128_ecb(), NULL, aeskey2, NULL))
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(rerandCtx, 0);
     
+    if(!(newRowCtx = EVP_CIPHER_CTX_new())) 
+        printf("errors occured in creating context\n");
+    //uint128_t aeskey2 = getRandomBlock();
+    //next line just for testing. Servers would generate and share a secret key here in production
+    unsigned char *aeskey3 = (unsigned char*) "3123456789123456";
+    if(1 != EVP_EncryptInit_ex(newRowCtx, EVP_aes_128_ecb(), NULL, aeskey3, NULL))
+        printf("errors occured in init\n");
+    EVP_CIPHER_CTX_set_padding(newRowCtx, 0);
+    
     memset(&rerandSeed, 0, 16);
+    
+    tempRowId = (uint8_t*) malloc(16);
     
     dbSize = 0;
     layers = 1;
@@ -46,20 +60,28 @@ int initializeServer(){
 }
 
 //register a new entry on a server
-int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
+int processnewEntry(int dataSize, uint8_t *rowKey){
+    
+    int len;
+    //generate a new rowId
+    uint128_t bigCounter = (uint128_t)dbSize;
+    if(1 != EVP_EncryptUpdate(newRowCtx, tempRowId, &len, (uint8_t*)&bigCounter, 16))
+        printf("errors occured in generating row ID\n");
 
     uint128_t realRowId;
-    memcpy(&realRowId, rowId, 16);
+    memcpy(&realRowId, tempRowId, 16);
     uint128_t realRowKey;
     memcpy(&realRowKey, rowKey, 16);
     
-    //print_block(realRowKey);
+    //print_block(realRowId);
     //printf("\n");
     
     //check if rowId is taken in db and return 1 if that happens
+    //we would need a second counter to handle this in reality
     //this could be made more efficient, but I don't really care about optimizing registration time atm
     for(int i = 0; i < dbSize; i++){
         if(memcmp(&realRowId, &(db[i].rowID), 16) == 0){
+            printf("row id already taken!\n");
             return 1;
         }
     }
@@ -88,7 +110,6 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     //now do the encryption/rerandomization for this entry so it can be retrieved normally
     uint8_t* maskTemp = (uint8_t*) malloc(dataSize+16);
     uint8_t* seedTemp = (uint8_t*) malloc(dataSize+16);
-    int len;
     //get rerandomization mask
     for(int j = 0; j < (db[i].dataSize+16)/16; j++){
         memcpy(&seedTemp[16*j], &rerandSeed, 16);
@@ -96,10 +117,7 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     }
     if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, dataSize+16))
         printf("errors occured in rerandomization of entry %d\n", i);
-    //test
-    //uint128_t test = 0;
-    //memcpy(&test, seedTemp, 16);
-    //print_block(test);
+
     //xor data into db and rerandomize db entry
     for(int j = 0; j < dataSize; j++){
         db[i].data[j] = db[i].data[j] ^ maskTemp[j];
@@ -107,7 +125,6 @@ int processnewEntry(uint8_t *rowId, int dataSize, uint8_t *rowKey){
     }
     free(maskTemp);
     free(seedTemp);
-    
     return dbSize-1;
 }
 
