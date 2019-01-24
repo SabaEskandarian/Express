@@ -380,8 +380,8 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
         }
     }
     
-    //temporarily remove auditing
-    //writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
+    //comment this line to temporarily remove auditing
+    writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
     flag <- 1
     return
 }
@@ -450,7 +450,7 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     //prepare the auditor message
     C.prepAudit(C.int(index), layers, (*C.uchar)(&seed[0]))
     
-    //log.Println(int(layers))
+    //log.Println(int(layers))  
     
     //send identification and
     //send layers to auditor
@@ -480,10 +480,13 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     
     //read success bit
     auditResp := make([]byte, 1)
-    n, err = conn.Read(auditResp)
-    if err != nil && n != 1{
-        log.Println(n, err)
-        return
+    count := 0
+    for count < 1 {
+        n, err = conn.Read(auditResp)
+        count += n
+        if err != nil && n != 1 {
+            log.Println(n, err)
+        }
     }
     
     if auditResp[0] != 1 {

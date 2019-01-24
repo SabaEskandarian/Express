@@ -8,7 +8,7 @@
 rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
 uint8_t userBits[MAX_LAYERS];
-uint8_t nonZeroVectors[2*MAX_LAYERS];
+uint8_t nonZeroVectors[2*MAX_LAYERS*16];
 uint128_t shareA;
 uint128_t shareB;
 EVP_CIPHER_CTX *ctx;

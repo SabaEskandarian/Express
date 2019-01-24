@@ -77,10 +77,6 @@ func main() {
             log.Println("something went wrong in getting audit messages")
         }
         
-        log.Println(layers[0])
-        log.Println(layers[1])
-        log.Println(layers[2])
-        
         if layers[0] != layers[1] || layers[1] != layers[2] {
             log.Println("disagreement about number of layers!")
         }
@@ -134,7 +130,6 @@ func handleConnection(conn net.Conn, flag chan int) {
             }
         }
         layers[2] = byteToInt(layersInput)
-        log.Println(layers[2])
         
         dataTransferSize := layers[2]
         userBits = make([]byte, dataTransferSize)
@@ -168,8 +163,6 @@ func handleConnection(conn net.Conn, flag chan int) {
             }
         }
         layers[1] = byteToInt(layersInput)
-        log.Println(layers[1])
-
         
         dataTransferSize := layers[1]*2*16
         serverAInput = make([]byte, dataTransferSize)
@@ -186,13 +179,11 @@ func handleConnection(conn net.Conn, flag chan int) {
             n, err= conn.Read(layersInput[count:])
             count += n
             if err != nil && count != 4{
-                log.Println(err) 
+                log.Println(err)  
                 log.Println(n)
             }
         }
         layers[0] = byteToInt(layersInput)
-        log.Println(layers[0])
-
         
         dataTransferSize := layers[0]*2*16
         serverBInput = make([]byte, dataTransferSize)
@@ -213,12 +204,12 @@ func handleConnection(conn net.Conn, flag chan int) {
     
     if auditSuccess == 0 {
         log.Println("auditing failed? :(")
-        return
+        //return
     }
     
     //write back to user/server saying auditing succeeded
     auditPass :=make([]byte,1)
-    auditPass[0] =byte( auditSuccess)
+    auditPass[0] = byte(auditSuccess)
     n, err = conn.Write(auditPass)
     if err != nil {
         log.Println(n, err)

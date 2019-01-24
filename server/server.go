@@ -278,7 +278,6 @@ func handleWrite(conn net.Conn, leader int) {
     //process query
     C.processQuery()  
 
-    /*temporarily remove auditing
     //send audit info to auditor
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -307,15 +306,18 @@ func handleWrite(conn net.Conn, leader int) {
     
     //read auditor response and give an error if it doesn't accept
     auditResp := make([]byte, 1)
-    n, err = conn.Read(auditResp)
-    if err != nil && n != 1 {
-        log.Println(n, err)
-        return
+    count = 0
+    for count < 1 {
+        n, err = conn2.Read(auditResp)
+        count += n
+        if err != nil && n != 1 {
+            log.Println(n, err)
+        }
     }
     
     if auditResp[0] != 1 {
         log.Println("Audit Failed.")
     }
-    */
+    
     return
 }
