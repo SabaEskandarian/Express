@@ -20,7 +20,7 @@ var userBits []byte
 var userNonZeros []byte
 var serverAInput []byte
 var serverBInput []byte
-var layers [3]byte   
+var layers [3]int
 
 func main() {
     log.SetFlags(log.Lshortfile)
@@ -96,6 +96,20 @@ func main() {
     }
 } 
 
+func byteToInt(myBytes []byte) (x int) {
+    x = int(myBytes[3]) << 24 + int(myBytes[2]) << 16 + int(myBytes[1]) << 8 + int(myBytes[0])
+    return
+}
+
+func intToByte(myInt int) (retBytes []byte){
+    retBytes = make([]byte, 4)
+    retBytes[3] = byte((myInt >> 24) & 0xff)
+    retBytes[2] = byte((myInt >> 16) & 0xff)
+    retBytes[1] = byte((myInt >> 8) & 0xff)
+    retBytes[0] = byte(myInt & 0xff)
+    return
+}
+
 func handleConnection(conn net.Conn, flag chan int) {
     defer conn.Close()
     
@@ -110,62 +124,82 @@ func handleConnection(conn net.Conn, flag chan int) {
     count := 0
     if UorS[0] == 2 { //user
         
-        n, err:= conn.Read(layers[2:])
-        if err != nil && n!=1 {
-            log.Println(err)
-            log.Println(n)
+        layersInput := make([]byte, 4)
+        for count = 0; count < 4; {
+            n, err= conn.Read(layersInput[count:])
+            count += n
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+            }
         }
+        layers[2] = byteToInt(layersInput)
+        log.Println(layers[2])
         
         dataTransferSize := layers[2]
         userBits = make([]byte, dataTransferSize)
-        for count < int(dataTransferSize) {
+        for count < dataTransferSize {
             n, err:= conn.Read(userBits[count:])
             count += n
-            if err != nil && err != io.EOF && count != int(dataTransferSize) {
+            if err != nil && err != io.EOF && count != dataTransferSize {
                 log.Println(err)
             }
         }
+
         count = 0
-        dataTransferSize = layers[2]*128
+        dataTransferSize = layers[2]*16
         userNonZeros = make([]byte, dataTransferSize)
         for count < int(dataTransferSize) {
             n, err:= conn.Read(userNonZeros[count:])
             count += n
-            if err != nil && err != io.EOF && count != int(dataTransferSize) {
+            if err != nil && err != io.EOF && count != dataTransferSize {
                 log.Println(err)
             }
         }
-    } else if UorS[0] == 1 { //server A
-        n, err:= conn.Read(layers[1:2])
-        if err != nil && n != 1{
-            log.Println(err)
-            log.Println(n)
 
+    } else if UorS[0] == 1 { //server A
+        layersInput := make([]byte, 4)
+        for count = 0; count < 4; {
+            n, err= conn.Read(layersInput[count:])
+            count += n
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+            }
         }
+        layers[1] = byteToInt(layersInput)
+        log.Println(layers[1])
+
         
-        dataTransferSize := layers[1]*2*128
+        dataTransferSize := layers[1]*2*16
         serverAInput = make([]byte, dataTransferSize)
-        for count < int(dataTransferSize) {
+        for count < dataTransferSize {
             n, err:= conn.Read(serverAInput[count:])
             count += n
-            if err != nil && err != io.EOF && count != int(dataTransferSize){
+            if err != nil && err != io.EOF && count != dataTransferSize{
                 log.Println(err)
             }
         }
     } else if UorS[0] == 0 { //server B
-        n, err:= conn.Read(layers[:1])
-        if err != nil && n != 1{
-            log.Println(err)
-            log.Println(n)
-
-        }
-        
-        dataTransferSize := layers[0]*2*128
-        serverBInput = make([]byte, dataTransferSize)
-        for count < int(dataTransferSize) {
-            n, err:= conn.Read(serverAInput[count:])
+        layersInput := make([]byte, 4)
+        for count = 0; count < 4; {
+            n, err= conn.Read(layersInput[count:])
             count += n
-            if err != nil && err != io.EOF && count != int(dataTransferSize) {
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+            }
+        }
+        layers[0] = byteToInt(layersInput)
+        log.Println(layers[0])
+
+        
+        dataTransferSize := layers[0]*2*16
+        serverBInput = make([]byte, dataTransferSize)
+        for count < dataTransferSize {
+            n, err:= conn.Read(serverBInput[count:])
+            count += n
+            if err != nil && err != io.EOF && count != dataTransferSize {
                 log.Println(err)
             }
         }

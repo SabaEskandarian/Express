@@ -45,14 +45,6 @@ func main() {
     msg := []byte("this is the message!")
     writeRow(13, msg)
     log.Println("wrote message")
-    /*
-    rowVal = readRow(11)
-    log.Println("rowVal 11 is ")
-    log.Println(rowVal)    
-    
-    rowVal = readRow(13)
-    log.Println("rowVal 13 is ")
-    log.Println(rowVal)
     
     rowVal = readRow(11)
     log.Println("rowVal 11 is ")
@@ -61,7 +53,15 @@ func main() {
     rowVal = readRow(13)
     log.Println("rowVal 13 is ")
     log.Println(rowVal)
-    */
+    
+    rowVal = readRow(11)
+    log.Println("rowVal 11 is ")
+    log.Println(rowVal)    
+    
+    rowVal = readRow(13)
+    log.Println("rowVal 13 is ")
+    log.Println(rowVal)
+    
 }
 
 func byteToInt(myBytes []byte) (x int) {
@@ -379,7 +379,8 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
         }
     }
     
-    writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
+    //temporarily remove auditing
+    //writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
     flag <- 1
     return
 }
@@ -448,8 +449,13 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     //prepare the auditor message
     C.prepAudit(C.int(index), layers, (*C.uchar)(&seed[0]))
     
+    //log.Println(int(layers))
+    
+    //send identification and
     //send layers to auditor
-    n, err := conn.Write(intToByte(int(layers)))
+    l := make([]byte, 1)
+    l[0] = 2
+    n, err := conn.Write(append(l, intToByte(int(layers))...))
     if err != nil {
         log.Println(n, err)
         return
@@ -464,7 +470,7 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     }
     
     //send nonzero vectors to auditor
-    sendVectors := C.GoBytes(unsafe.Pointer(&(C.nonZeroVectors[0])), layers*2*16)
+    sendVectors := C.GoBytes(unsafe.Pointer(&(C.nonZeroVectors[0])), layers*16)
     n, err = conn.Write(sendVectors)
     if err != nil {
         log.Println(n, err)

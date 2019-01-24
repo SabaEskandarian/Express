@@ -267,6 +267,7 @@ func handleWrite(conn net.Conn, leader int) {
         }
         
         //also send number of layers
+        //log.Println(int(C.layers))
         n, err=conn.Write(intToByte(int(C.layers)))
         if err != nil {
             log.Println(n, err)
@@ -277,6 +278,8 @@ func handleWrite(conn net.Conn, leader int) {
     //process query
     C.processQuery()
     
+
+    /*temporarily remove auditing
     //send audit info to auditor
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -291,12 +294,18 @@ func handleWrite(conn net.Conn, leader int) {
     
     l := make([]byte, 1)
     l[0] = byte(leader)
-    n, err := conn2.Write(append(l, C.GoBytes(unsafe.Pointer(&C.outVector), C.layers)...))
+    n, err := conn2.Write(append(l, intToByte(int(C.layers))...))
     if err != nil {
         log.Println(n, err)
         return
     }
 
+    n, err = conn2.Write(C.GoBytes(unsafe.Pointer(&C.outVector), C.layers*16*2))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
     //read auditor response and give an error if it doesn't accept
     auditResp := make([]byte, 1)
     n, err = conn.Read(auditResp)
@@ -308,6 +317,6 @@ func handleWrite(conn net.Conn, leader int) {
     if auditResp[0] != 1 {
         log.Println("Audit Failed.")
     }
-    
+    */
     return
 }

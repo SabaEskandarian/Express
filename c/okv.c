@@ -165,11 +165,11 @@ void processQuery(void){
             memcpy(&seedTemp[16*j], &rerandSeed, 16);
             seedTemp[16*j] = seedTemp[16*j] ^ j;
         }
-        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, ((ds-1)|15)+1))
+        if(1 != EVP_EncryptUpdate(db[i].rowKey, maskTemp, &len, seedTemp, ((db[i].dataSize-1)|15)+1))
             printf("errors occured in rerandomization of entry %d\n", i);
         
         //xor data into db and rerandomize db entry
-        for(int j = 0; j < ds; j++){
+        for(int j = 0; j < db[i].dataSize; j++){
             db[i].data[j] = db[i].data[j] ^ dataShare[j] ^ db[i].mask[j] ^ maskTemp[j];
             db[i].mask[j] = maskTemp[j];
         }
