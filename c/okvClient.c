@@ -129,13 +129,13 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
             memcpy(&seedTempA[16*j], seedA, 16);
             seedTempA[16*j] = seedTempA[16*j] ^ j;
     }
-    if(1 != EVP_EncryptUpdate(db[localIndex].keyA, maskA, &len, seedTempA, db[localIndex].dataSize+16))
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyA, maskA, &len, seedTempA, ((db[localIndex].dataSize-1)|15)+1))
         printf("errors occured in rerandomization of entry %d\n", localIndex);
     for(int j = 0; j < (db[localIndex].dataSize+16)/16; j++){
             memcpy(&seedTempB[16*j], seedB, 16);
             seedTempB[16*j] = seedTempB[16*j] ^ j;
     }
-    if(1 != EVP_EncryptUpdate(db[localIndex].keyB, maskB, &len, seedTempB, db[localIndex].dataSize+16))
+    if(1 != EVP_EncryptUpdate(db[localIndex].keyB, maskB, &len, seedTempB, ((db[localIndex].dataSize-1)|15)+1))
         printf("errors occured in rerandomization of entry %d\n", localIndex);
         
     outData = (uint8_t*) malloc(db[localIndex].dataSize);
@@ -143,6 +143,9 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
     for(int i = 0; i < db[localIndex].dataSize; i++){
         outData[i] = dataA[i] ^ dataB[i] ^ maskA[i] ^ maskB[i];
     }
+    
+    //printf("some numbers %d %d %d\n", len, localIndex, db[localIndex].dataSize);
+    //printf("\n");
     
     free(maskA);
     free(maskB);

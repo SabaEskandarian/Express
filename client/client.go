@@ -39,8 +39,29 @@ func main() {
     }
       
     rowVal := readRow(13)
-    log.Println("rowVal is ")
+    log.Println("rowVal 13 is ")
     log.Println(rowVal)
+    
+    msg := []byte("this is the message!")
+    writeRow(13, msg)
+    log.Println("wrote message")
+    /*
+    rowVal = readRow(11)
+    log.Println("rowVal 11 is ")
+    log.Println(rowVal)    
+    
+    rowVal = readRow(13)
+    log.Println("rowVal 13 is ")
+    log.Println(rowVal)
+    
+    rowVal = readRow(11)
+    log.Println("rowVal 11 is ")
+    log.Println(rowVal)    
+    
+    rowVal = readRow(13)
+    log.Println("rowVal 13 is ")
+    log.Println(rowVal)
+    */
 }
 
 func byteToInt(myBytes []byte) (x int) {
@@ -257,7 +278,7 @@ func readRow(localIndex int) ([]byte){
     //log.Println(dataB)
     //log.Println(seedA)
     //log.Println(seedB)
-    //log.Println() 
+    //log.Println()  
     
     //decrypt
     //void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);
@@ -276,13 +297,24 @@ func writeRow(localIndex int, data []byte) {
     C.prepQuery(C.int(localIndex), (*C.uchar)(&data[0]), C.int(dataSize), &cIntQuerySize)
     
     //call helper function goroutines to communicate with each party
-    intQuerySize := byteToInt(querySize)
-    go writeRowServerA(dataSize, intQuerySize, localIndex)
-    go writeRowServerB(dataSize, intQuerySize)
+    intQuerySize := int(cIntQuerySize)//byteToInt(querySize)
     
+    flag1 := make(chan int)
+    flag2 := make(chan int)
+
+    go writeRowServerA(dataSize, intQuerySize, localIndex, flag1)
+    go writeRowServerB(dataSize, intQuerySize, flag2)
+    
+    //wait for connections to be handled before returning
+    done1 := <- flag1
+    done2 := <- flag2
+    
+    if done1 != 1 || done2 != 1 {
+        log.Println("something strange happened :(")
+    }
 }
 
-func writeRowServerA(dataSize, querySize int, localIndex int) {
+func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
@@ -301,6 +333,9 @@ func writeRowServerA(dataSize, querySize int, localIndex int) {
         log.Println(n, err)
         return
     }
+    
+    //log.Println(dataSize)
+    //log.Println(querySize)
     
     //write dataTransferSize
     n, err = connA.Write(intToByte(querySize))
@@ -345,10 +380,11 @@ func writeRowServerA(dataSize, querySize int, localIndex int) {
     }
     
     writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
+    flag <- 1
     return
 }
 
-func writeRowServerB(dataSize, querySize int) {
+func writeRowServerB(dataSize, querySize int, flag chan int) {
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
@@ -390,6 +426,9 @@ func writeRowServerB(dataSize, querySize int) {
         log.Println(n, err)
         return
     }
+    
+    flag <- 1
+    
     return
 }
 

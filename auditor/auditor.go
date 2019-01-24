@@ -20,7 +20,7 @@ var userBits []byte
 var userNonZeros []byte
 var serverAInput []byte
 var serverBInput []byte
-var layers [3]byte
+var layers [3]byte   
 
 func main() {
     log.SetFlags(log.Lshortfile)
@@ -76,6 +76,10 @@ func main() {
         if done1 != 1 || done2 != 1 || done3 != 1 {
             log.Println("something went wrong in getting audit messages")
         }
+        
+        log.Println(layers[0])
+        log.Println(layers[1])
+        log.Println(layers[2])
         
         if layers[0] != layers[1] || layers[1] != layers[2] {
             log.Println("disagreement about number of layers!")

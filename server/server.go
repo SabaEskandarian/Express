@@ -90,6 +90,9 @@ func handleConnection(conn net.Conn, leader int) {
         log.Println(n)
     }
     
+    //log.Println("handling a connection of type ")
+    //log.Println(connType[0])
+    
     count := 0
 
     if connType[0] == 1 { //register row
@@ -130,9 +133,9 @@ func handleConnection(conn net.Conn, leader int) {
             return
         }
         
-        if leader == 1 {  
-            //send the rowId back
-            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))
+        if leader == 1 {
+            //send the rowId back 
+            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))   
             if err != nil {
                 log.Println(n, err)
                 return
@@ -210,11 +213,14 @@ func handleConnection(conn net.Conn, leader int) {
 func handleWrite(conn net.Conn, leader int) {
     dataTransferSize:= 0 //how big the query from the user is
     dataSize := 0 //how big the data in a row is
+    in1 := make([]byte, 4)
+    in2 := make([]byte, 4)
+
     
     count := 0
     //read dataTransferSize
     for count < 4 {
-        n, err:= conn.Read(intToByte(dataTransferSize)[count:])
+        n, err:= conn.Read(in1[count:])
         count += n
         if err != nil && count != 4{
             log.Println(err)
@@ -224,13 +230,16 @@ func handleWrite(conn net.Conn, leader int) {
     count = 0
     //read dataSize
     for count < 4 {
-        n, err:= conn.Read(intToByte(dataSize)[count:])
+        n, err:= conn.Read(in2[count:])
         count += n
         if err != nil && count != 4{
             log.Println(err)
             log.Println(n)
         }
     }
+    
+    dataTransferSize = byteToInt(in1)
+    dataSize = byteToInt(in2)
         
     //get the input
     count= 0
@@ -243,6 +252,8 @@ func handleWrite(conn net.Conn, leader int) {
         }
     }
     
+    //log.Println(dataSize)
+    //log.Println(dataTransferSize)
     //register the input with c  
     var auditSeed [16]byte
     auditSeed = C.registerQuery((*C.uchar)(&input[0]), C.int(dataSize), C.int(dataTransferSize))
