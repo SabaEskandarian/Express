@@ -142,7 +142,8 @@ uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSiz
 //processes query on the server
 void processQuery(void){
     
-    uint8_t* dataShare = (uint8_t*) malloc(pqDataSize);
+    uint8_t* dataShare = (uint8_t*) malloc(pqDataSize+16);
+    memset(dataShare, 0, pqDataSize+16);
     uint8_t* maskTemp = (uint8_t*) malloc(pqDataSize+16);
     uint8_t* seedTemp = (uint8_t*) malloc(pqDataSize+16);
     int len;
@@ -158,7 +159,8 @@ void processQuery(void){
             ds = pqDataSize;
         }
         //run dpf on each input
-        vector[i] = evalDPF(ctx, pendingQuery, i, ds, dataShare);
+        vector[i] = evalDPF(ctx, pendingQuery, db[i].rowID, ds, dataShare);
+        //print_block(vector[i]);
         
         //get rerandomization mask
         for(int j = 0; j < (db[i].dataSize+16)/16; j++){
@@ -170,9 +172,14 @@ void processQuery(void){
         
         //xor data into db and rerandomize db entry
         for(int j = 0; j < db[i].dataSize; j++){
-            db[i].data[j] = db[i].data[j] ^ dataShare[j] ^ db[i].mask[j] ^ maskTemp[j];
+            if(j < ds) {
+                db[i].data[j] = db[i].data[j] ^ dataShare[j];
+            }
+            db[i].data[j] = db[i].data[j] ^ db[i].mask[j] ^ maskTemp[j];
             db[i].mask[j] = maskTemp[j];
+            //printf("%x ", dataShare[j]);
         }
+        //printf("\n");
         
     }
     //increment rerandomization counter

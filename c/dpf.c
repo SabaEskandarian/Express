@@ -370,13 +370,15 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
         printf("errors occured in creating context\n");
     if(1 != EVP_EncryptInit_ex(seedCtx, EVP_aes_128_ctr(), NULL, (uint8_t*)&s[maxLayer], NULL))
         printf("errors occured in init of dpf eval\n");
-    if(1 != EVP_EncryptUpdate(seedCtx, dataShare, &len, zeros, dataSize))
+    if(1 != EVP_EncryptUpdate(seedCtx, dataShare, &len, zeros, ((dataSize-1)|15)+1))
         printf("errors occured in encrypt\n");
     
     for(int i = 0; i < dataSize; i++){
         if(t[maxLayer] == 1){
             //xor in correction word
             dataShare[i] = dataShare[i] ^ k[18*n+18+i];
+            
+            //printf("xoring stuff in at index %d\n", i);
         }
                 //printf("%x\n", (*dataShare)[i]);
 
@@ -384,6 +386,9 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
     
     free(zeros);
     EVP_CIPHER_CTX_free(seedCtx);
+    
+    //print_block(s[maxLayer]);
+    //printf("%x\n", t[maxLayer]);
 
     //use the last seed for dpf checking
 	return s[maxLayer];    

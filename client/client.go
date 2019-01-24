@@ -40,27 +40,28 @@ func main() {
       
     rowVal := readRow(13)
     log.Println("rowVal 13 is ")
-    log.Println(rowVal)
+    log.Println(string(rowVal))
     
     msg := []byte("this is the message!")
     writeRow(13, msg)
     log.Println("wrote message")
+    //C.print_block(C.db[13].rowID)
     
     rowVal = readRow(11)
     log.Println("rowVal 11 is ")
-    log.Println(rowVal)    
+    log.Println(string(rowVal))    
     
     rowVal = readRow(13)
     log.Println("rowVal 13 is ")
-    log.Println(rowVal)
+    log.Println(string(rowVal)) 
     
     rowVal = readRow(11)
     log.Println("rowVal 11 is ")
-    log.Println(rowVal)    
+    log.Println(string(rowVal))    
     
     rowVal = readRow(13)
     log.Println("rowVal 13 is ")
-    log.Println(rowVal)
+    log.Println(string(rowVal))
     
 }
 

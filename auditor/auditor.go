@@ -186,7 +186,7 @@ func handleConnection(conn net.Conn, flag chan int) {
             n, err= conn.Read(layersInput[count:])
             count += n
             if err != nil && count != 4{
-                log.Println(err)
+                log.Println(err) 
                 log.Println(n)
             }
         }

@@ -266,18 +266,17 @@ func handleWrite(conn net.Conn, leader int) {
             return
         }
         
-        //also send number of layers
+        //also send number of layers   
         //log.Println(int(C.layers))
         n, err=conn.Write(intToByte(int(C.layers)))
-        if err != nil {
+        if err != nil { 
             log.Println(n, err)
             return
         }
     }
     
     //process query
-    C.processQuery()
-    
+    C.processQuery()  
 
     /*temporarily remove auditing
     //send audit info to auditor
