@@ -23,7 +23,7 @@ var serverAInput []byte
 var serverBInput []byte
 var layers [3]int
 
-func main() {
+func main() {   
     log.SetFlags(log.Lshortfile)
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")

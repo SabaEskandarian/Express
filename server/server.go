@@ -22,7 +22,7 @@ import (
 
 var auditor string
 
-func main() {
+func main() {  
     auditor = "127.0.0.1:4444"
 
     log.SetFlags(log.Lshortfile) 
@@ -68,15 +68,15 @@ func main() {
     }
     defer ln.Close()
 
-    //for {
-    conn, err := ln.Accept()
-    if err != nil {
-        log.Println(err)
-        //continue
+    for {
+        conn, err := ln.Accept()
+        if err != nil {
+            log.Println(err)
+            //continue
+        }
+        conn.SetDeadline(time.Time{})
+        handleConnection(conn, leader, conn2)
     }
-    conn.SetDeadline(time.Time{})
-    handleConnection(conn, leader, conn2)
-    //}
 }
 
 func byteToInt(myBytes []byte) (x int) {
@@ -94,7 +94,7 @@ func intToByte(myInt int) (retBytes []byte){
 }
 
 func handleConnection(conn net.Conn, leader int, conn2 *tls.Conn) {
-    //defer conn.Close()
+    defer conn.Close()
     for{
         //determine what kind of connection this is
         connType := make([]byte, 1)  

@@ -161,22 +161,25 @@ uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSiz
 //processes query on the server
 void processQuery(void){
     
-    uint8_t* dataShare = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    memset(dataShare, 0, MAX_DATA_SIZE+16);
-    uint8_t* maskTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    uint8_t* seedTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    int len;
+    int len2;
     
     //get rerandomization seed
-    if(1 != EVP_EncryptUpdate(rerandCtx, (uint8_t*)&rerandSeed, &len, (uint8_t*)&rerandCounter, 16))
+    if(1 != EVP_EncryptUpdate(rerandCtx, (uint8_t*)&rerandSeed, &len2, (uint8_t*)&rerandCounter, 16))
         printf("errors occured in getting rerandomization seed\n");
     
+    #pragma omp parallel for
     for(int i = 0; i < dbSize; i++){
-        
+        int len;
+            
         int ds = db[i].dataSize;
         if(pqDataSize < ds){
             ds = pqDataSize;
         }
+        uint8_t* dataShare = (uint8_t*) malloc(db[i].dataSize+16);
+        memset(dataShare, 0, db[i].dataSize+16);
+        uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
+        uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
+        
         //run dpf on each input
         vector[i] = evalDPF(ctx, pendingQuery, db[i].rowID, ds, dataShare);
         //print_block(vector[i]);
@@ -200,6 +203,9 @@ void processQuery(void){
         }
         //printf("\n");
         
+        free(dataShare);
+        free(maskTemp);
+        free(seedTemp);
     }
     //increment rerandomization counter
     rerandCounter++;
@@ -207,9 +213,6 @@ void processQuery(void){
     //produce verification check for the data
     serverVerify(ctx, verificationSeed, layers, dbSize, vector, outVector);
     
-    free(dataShare);
-    free(maskTemp);
-    free(seedTemp);
     free(pendingQuery);
 }
 

@@ -23,7 +23,7 @@ var serverA string
 var serverB string
 var auditor string
 
-func main() {
+func main() {   
      
     serverA = "127.0.0.1:4443"
     serverB = "127.0.0.1:4442"
@@ -38,15 +38,51 @@ func main() {
         log.Println(err)
         return
     }
-    defer connA.Close()
 
     connB, err := tls.Dial("tcp", serverB, conf)
     if err != nil {
         log.Println(err)
         return
     }
-    defer connB.Close()
+    
+    log.SetFlags(log.Lshortfile)
+    
+    C.initializeClient()
+    
+    //use the connections set up at the beginning to add a bunch of rows really fast
+    for i:= 0; i < 10000; i++ {
+        addRow(1000, connA, connB) 
+        if i % 1000 == 0 {
+            log.Println("added 1000 rows")
+        }
+    }
+    //close the connections we used for setup
+    connA.Close()
+    connB.Close()
+    
+    //msg := []byte("this is the message!")
+    dataLen := 1000
+    msg := make([]byte, dataLen)
+    for i := 0; i < dataLen; i++ {
+        msg[i] = 'a'
+    }
+    //measured ops here
+    startTime := time.Now()
+    
+    //new connections to include them in measurement
+    connA, err = tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connA.Close()
 
+    connB, err = tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connB.Close()
     conn, err := tls.Dial("tcp", auditor, conf) 
     if err != nil {
         log.Println(err)
@@ -61,34 +97,16 @@ func main() {
         return
     }
     
-    log.SetFlags(log.Lshortfile)
-    
-    C.initializeClient()
-    
-    //TODO test operations go here
+    writeRow(13, msg, conn, connA, connB)
 
-    for i:= 0; i < 1000; i++ {
-        addRow(1000, connA, connB) 
-        //if i % 1000 == 0 {
-        //    log.Println("added 1000 rows")
-        //}
-    }
-      
-    msg := []byte("this is the message!")
-    //measured ops here
-    startTime := time.Now()
-    
-    //for i:= 0; i < 10000; i++ { 
-        
-        writeRow(13, msg, conn, connA, connB)
-        //if i % 100 == 0 {
-        //    log.Println("completed 100 writes")
-        //}
-    //}
     
     elapsedTime := time.Since(startTime)
     log.Printf("operation time: %s\n", elapsedTime)
-      
+    
+    //end measurement
+    
+    //the rest is here to make sure nothing is broken
+    //not important for measurement
     rowVal := readRow(13, connA, connB)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
@@ -98,15 +116,7 @@ func main() {
     
     rowVal = readRow(11, connA, connB)
     log.Println("rowVal 11 is ")
-    log.Println(string(rowVal))    
-    
-    rowVal = readRow(13, connA, connB)
-    log.Println("rowVal 13 is ")
-    log.Println(string(rowVal)) 
-    
-    rowVal = readRow(11, connA, connB)
-    log.Println("rowVal 11 is ")
-    log.Println(string(rowVal))    
+    log.Println(string(rowVal))      
     
     rowVal = readRow(13, connA, connB)
     log.Println("rowVal 13 is ")
