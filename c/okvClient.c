@@ -7,8 +7,8 @@
 
 rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
-uint8_t userBits[MAX_LAYERS];
-uint8_t nonZeroVectors[2*MAX_LAYERS*16];
+uint8_t *userBits;
+uint8_t *nonZeroVectors;
 uint128_t shareA;
 uint128_t shareB;
 EVP_CIPHER_CTX *ctx;
@@ -24,6 +24,10 @@ int outDataSet;
 int dbSize;
 
 int initializeClient(){
+    
+    userBits = (uint8_t*) malloc(MAX_LAYERS);
+    nonZeroVectors = (uint8_t*) malloc(2*MAX_LAYERS*16);
+    
         //set fixed key
     if(!(ctx = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");

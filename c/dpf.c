@@ -364,6 +364,7 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
     uint8_t *zeros = (uint8_t*) malloc(dataSize+16);
     memset(zeros, 0, dataSize+16);
     //use a counter mode encryption of 0 with each seed as key to get prg output
+    //printf("here\n");
     
     EVP_CIPHER_CTX *seedCtx;
     if(!(seedCtx = EVP_CIPHER_CTX_new())) 
@@ -497,14 +498,14 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         for(int j = 0; j < newDbSize; j++){
             PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
-                rightSum = multModP(vectorsWorkSpace[j], prfOutput);
+                //rightSum = multModP(vectorsWorkSpace[j], prfOutput);
                 //use line commented below when compiling without openmp
-                //rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
+                rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
             else{ // j is in left half
-                leftSum = multModP(vectorsWorkSpace[j], prfOutput);
+                //leftSum = multModP(vectorsWorkSpace[j], prfOutput);
                 //use line commented below when compiling without openmp
-                //leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
+                leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
         }
         
@@ -527,6 +528,10 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
             memcpy(&outVectors[2*i], &rightSum, 16);
             memcpy(&outVectors[2*i+1], &leftSum, 16);
         }
+        
+        //print_block(rightSum);
+        //print_block(leftSum);
+        
     }
     free(vectorsWorkSpace);
 }
@@ -571,7 +576,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_
     return pass;
 }
 
-int dpfTests(){
+int tests(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
     EVP_CIPHER_CTX *ctx;
@@ -599,8 +604,8 @@ int dpfTests(){
     //evaluate dpf
 	uint128_t res1;
 	uint128_t res2;
-    uint8_t* dataShare0 = (uint8_t*) malloc(dataSize);
-    uint8_t* dataShare1 = (uint8_t*) malloc(dataSize);
+    uint8_t* dataShare0 = (uint8_t*) malloc(dataSize+16);
+    uint8_t* dataShare1 = (uint8_t*) malloc(dataSize+16);
     
 	res1 = evalDPF(ctx, k0, 12, dataSize, dataShare0);
 	res2 = evalDPF(ctx, k1, 12, dataSize, dataShare1);
@@ -620,8 +625,8 @@ int dpfTests(){
 
     }
     printf("\n");
-    
-    
+                //return 0;
+
     //now we'll do a simple functionality test of the dpf checking.
     //this will in no way be rigorous or even representative of the
     //usual use case since all the evaluation points are small

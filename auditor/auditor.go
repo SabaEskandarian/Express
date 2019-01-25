@@ -81,6 +81,14 @@ func main() {
             log.Println("disagreement about number of layers!")
         }
         
+        //log.Println(layers[0])
+        
+        //log.Println("inputs received")
+        //log.Println(userBits)
+        //log.Println(userNonZeros)
+        //log.Println(serverAInput)
+        //log.Println(serverBInput) 
+        
         //run the auditing
         auditResp := int(C.auditorVerify(C.int(layers[0]), (*C.uchar)(&userBits[0]), (*C.uchar)(&userNonZeros[0]), (*C.uchar)(&serverAInput[0]), (*C.uchar)(&serverBInput[0])));
 
@@ -110,19 +118,23 @@ func handleConnection(conn net.Conn, flag chan int) {
     defer conn.Close()
     
     //determine who is contacting the auditor
-    UorS:= make([]byte, 1)
-    n, err:= conn.Read(UorS)
-    if err != nil {
-        log.Println(err)
-    }
-        
-    //get input
     count := 0
-    if UorS[0] == 2 { //user
+    UorSBytes:= make([]byte, 4)
+    for count = 0; count < 4; {
+        n, err:= conn.Read(UorSBytes)
+        count += n
+        if err != nil && count != 4 {
+            log.Println(err)
+        }
+    }
+    UorS := byteToInt(UorSBytes)
+    
+    //get input
+    if UorS == 2 { //user
         
         layersInput := make([]byte, 4)
         for count = 0; count < 4; {
-            n, err= conn.Read(layersInput[count:])
+            n, err := conn.Read(layersInput[count:])
             count += n
             if err != nil && count != 4{
                 log.Println(err)
@@ -133,7 +145,7 @@ func handleConnection(conn net.Conn, flag chan int) {
         
         dataTransferSize := layers[2]
         userBits = make([]byte, dataTransferSize)
-        for count < dataTransferSize {
+        for count = 0; count < dataTransferSize; {
             n, err:= conn.Read(userBits[count:])
             count += n
             if err != nil && err != io.EOF && count != dataTransferSize {
@@ -152,10 +164,10 @@ func handleConnection(conn net.Conn, flag chan int) {
             }
         }
 
-    } else if UorS[0] == 1 { //server A
+    } else if UorS == 1 { //server A
         layersInput := make([]byte, 4)
         for count = 0; count < 4; {
-            n, err= conn.Read(layersInput[count:])
+            n, err := conn.Read(layersInput[count:])
             count += n
             if err != nil && count != 4{
                 log.Println(err)
@@ -166,17 +178,17 @@ func handleConnection(conn net.Conn, flag chan int) {
         
         dataTransferSize := layers[1]*2*16
         serverAInput = make([]byte, dataTransferSize)
-        for count < dataTransferSize {
+        for count = 0; count < dataTransferSize; {
             n, err:= conn.Read(serverAInput[count:])
             count += n
             if err != nil && err != io.EOF && count != dataTransferSize{
                 log.Println(err)
             }
         }
-    } else if UorS[0] == 0 { //server B
+    } else if UorS == 0 { //server B
         layersInput := make([]byte, 4)
         for count = 0; count < 4; {
-            n, err= conn.Read(layersInput[count:])
+            n, err := conn.Read(layersInput[count:])
             count += n
             if err != nil && count != 4{
                 log.Println(err)  
@@ -187,7 +199,7 @@ func handleConnection(conn net.Conn, flag chan int) {
         
         dataTransferSize := layers[0]*2*16
         serverBInput = make([]byte, dataTransferSize)
-        for count < dataTransferSize {
+        for count = 0; count < dataTransferSize; {
             n, err:= conn.Read(serverBInput[count:])
             count += n
             if err != nil && err != io.EOF && count != dataTransferSize {
@@ -210,7 +222,7 @@ func handleConnection(conn net.Conn, flag chan int) {
     //write back to user/server saying auditing succeeded
     auditPass :=make([]byte,1)
     auditPass[0] = byte(auditSuccess)
-    n, err = conn.Write(auditPass)
+    n, err := conn.Write(auditPass)
     if err != nil {
         log.Println(n, err)
         return

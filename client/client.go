@@ -370,6 +370,8 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
             log.Println(n)
         }
     }
+    //log.Println(seed)
+    
     layers := make([]byte, 4)
     for count := 0; count < 4; {
         n, err= connA.Read(layers[count:])
@@ -454,16 +456,21 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     
     //send identification and
     //send layers to auditor
-    l := make([]byte, 1)
-    l[0] = 2
-    n, err := conn.Write(append(l, intToByte(int(layers))...))
+    l := 2
+    n, err := conn.Write(intToByte(l))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    n, err = conn.Write(intToByte(int(layers)))
     if err != nil {
         log.Println(n, err)
         return
     }
     
     //send userbits to auditor
-    sendBits := C.GoBytes(unsafe.Pointer(&(C.userBits[0])), layers)
+    sendBits := C.GoBytes(unsafe.Pointer(C.userBits), layers)
     n, err = conn.Write(sendBits)
     if err != nil {
         log.Println(n, err)
@@ -471,12 +478,16 @@ func writeRowAuditor(index int, layers C.int, seed []byte) {
     }
     
     //send nonzero vectors to auditor
-    sendVectors := C.GoBytes(unsafe.Pointer(&(C.nonZeroVectors[0])), layers*16)
+    sendVectors := C.GoBytes(unsafe.Pointer(C.nonZeroVectors), layers*16)
     n, err = conn.Write(sendVectors)
     if err != nil {
         log.Println(n, err)
         return
     }
+    
+    //log.Println("audit materials sent")
+    //log.Println(sendBits)
+    //log.Println(sendVectors)
     
     //read success bit
     auditResp := make([]byte, 1)

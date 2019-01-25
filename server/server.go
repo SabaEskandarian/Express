@@ -3,7 +3,7 @@
 package main
 
 /*
-#cgo LDFLAGS: -fopenmp -lcrypto -lm
+#cgo LDFLAGS: -lcrypto -lm
 #include "../c/dpf.h"
 #include "../c/okv.h"
 #include "../c/dpf.c"
@@ -124,7 +124,7 @@ func handleConnection(conn net.Conn, leader int) {
         //call C command to register row
         newIndex:= C.processnewEntry(C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
         //log.Println(rowKey) 
-        //log.Println()
+        //log.Println() 
         
         //send the newIndex number back
         n, err=conn.Write(intToByte(int(newIndex)))
@@ -257,6 +257,7 @@ func handleWrite(conn net.Conn, leader int) {
     //register the input with c  
     var auditSeed [16]byte
     auditSeed = C.registerQuery((*C.uchar)(&input[0]), C.int(dataSize), C.int(dataTransferSize))
+    //log.Println(auditSeed[:])
     
     // if leader, send back the seed to the user
     if leader == 1{
@@ -266,10 +267,10 @@ func handleWrite(conn net.Conn, leader int) {
             return
         }
         
-        //also send number of layers   
+        //also send number of layers
         //log.Println(int(C.layers))
         n, err=conn.Write(intToByte(int(C.layers)))
-        if err != nil { 
+        if err != nil {
             log.Println(n, err)
             return
         }
@@ -278,7 +279,7 @@ func handleWrite(conn net.Conn, leader int) {
     //process query
     C.processQuery()  
 
-    //send audit info to auditor
+    //send audit info to auditor 
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
@@ -290,19 +291,26 @@ func handleWrite(conn net.Conn, leader int) {
     }
     defer conn2.Close()
     
-    l := make([]byte, 1)
-    l[0] = byte(leader)
-    n, err := conn2.Write(append(l, intToByte(int(C.layers))...))
+    n, err := conn2.Write(intToByte(leader))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    n, err = conn2.Write(intToByte(int(C.layers)))
     if err != nil {
         log.Println(n, err)
         return
     }
 
-    n, err = conn2.Write(C.GoBytes(unsafe.Pointer(&C.outVector), C.layers*16*2))
+    n, err = conn2.Write(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
     if err != nil {
         log.Println(n, err)
         return
     }
+    
+    //log.Println("audit materials sent")
+    log.Println(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
     
     //read auditor response and give an error if it doesn't accept
     auditResp := make([]byte, 1)
