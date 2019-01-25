@@ -265,7 +265,7 @@ func handleWrite(conn net.Conn, leader int, conn2 *tls.Conn) {
         if err != nil && count != dataTransferSize {
             log.Println(err)
         }
-    }
+    } 
     
     //log.Println(dataSize)
     //log.Println(dataTransferSize)

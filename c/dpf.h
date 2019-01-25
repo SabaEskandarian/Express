@@ -16,7 +16,7 @@
 //so they don't have to be repeated across okv and okvClient
 #define MAX_LAYERS 20
 #define MAX_DB_SIZE 100000
-#define MAX_QUERY_SIZE 20000000
+#define MAX_DATA_SIZE 10000000
 
 //use prime 2^128-159
 //so wrapping around involves a gap of size 159

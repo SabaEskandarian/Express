@@ -67,8 +67,8 @@ func main() {
     
     //TODO test operations go here
 
-    for i:= 0; i < 10000; i++ { 
-        addRow(25, connA, connB) 
+    for i:= 0; i < 1000; i++ {
+        addRow(1000, connA, connB) 
         //if i % 1000 == 0 {
         //    log.Println("added 1000 rows")
         //}

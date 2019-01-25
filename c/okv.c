@@ -161,10 +161,10 @@ uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSiz
 //processes query on the server
 void processQuery(void){
     
-    uint8_t* dataShare = (uint8_t*) malloc(pqDataSize+16);
-    memset(dataShare, 0, pqDataSize+16);
-    uint8_t* maskTemp = (uint8_t*) malloc(pqDataSize+16);
-    uint8_t* seedTemp = (uint8_t*) malloc(pqDataSize+16);
+    uint8_t* dataShare = (uint8_t*) malloc(MAX_DATA_SIZE+16);
+    memset(dataShare, 0, MAX_DATA_SIZE+16);
+    uint8_t* maskTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
+    uint8_t* seedTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
     int len;
     
     //get rerandomization seed
