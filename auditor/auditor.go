@@ -3,7 +3,8 @@
 package main
 
 /*
-#cgo LDFLAGS: -fopenmp -lcrypto -lm
+#cgo CFLAGS: -fopenmp
+#cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/dpf.c"
 */
@@ -37,7 +38,7 @@ func main() {
         log.Println(err)
         return
     }
-    defer ln.Close()
+    defer ln.Close() 
 
     for {
         flag1 := make(chan int)

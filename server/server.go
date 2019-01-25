@@ -3,7 +3,8 @@
 package main
 
 /*
-#cgo LDFLAGS: -lcrypto -lm
+#cgo CFLAGS: -fopenmp
+#cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/okv.h"
 #include "../c/dpf.c"
@@ -26,8 +27,8 @@ var auditor string
 func main() {
     auditor = "127.0.0.1:4444"
 
-    log.SetFlags(log.Lshortfile)
-    
+    log.SetFlags(log.Lshortfile) 
+     
     leader := 0
     if len(os.Args) > 1 {
         leader = 1
@@ -46,7 +47,7 @@ func main() {
     if leader == 1 { //if there is a second parameter
         port = ":4443"
     }
-    ln, err := tls.Listen("tcp", port, config) 
+    ln, err := tls.Listen("tcp", port, config)  
 
     if err != nil {
         log.Println(err)
@@ -310,7 +311,7 @@ func handleWrite(conn net.Conn, leader int) {
     }
     
     //log.Println("audit materials sent")
-    log.Println(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
+    //log.Println(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
     
     //read auditor response and give an error if it doesn't accept
     auditResp := make([]byte, 1)

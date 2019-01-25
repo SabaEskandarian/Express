@@ -499,15 +499,20 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
             PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
                 //rightSum = multModP(vectorsWorkSpace[j], prfOutput);
+                //printf("ladeeda%d\n", j);
                 //use line commented below when compiling without openmp
+                //looks like it actually works with openmp too!
                 rightSum = addModP(rightSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
             else{ // j is in left half
                 //leftSum = multModP(vectorsWorkSpace[j], prfOutput);
+                        //printf("ladeedee%d\n", j);
                 //use line commented below when compiling without openmp
+                //looks like it actually works with openmp too!
                 leftSum = addModP(leftSum, multModP(vectorsWorkSpace[j], prfOutput));
             }
         }
+        //printf("\n");
         
         //add together left and right halves for next iteration
         #pragma omp parallel for
@@ -576,7 +581,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_
     return pass;
 }
 
-int tests(){
+int dpf_tests(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
     EVP_CIPHER_CTX *ctx;

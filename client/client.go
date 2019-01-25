@@ -4,7 +4,8 @@ package main
 
 
 /*
-#cgo LDFLAGS: -fopenmp -lcrypto -lm 
+#cgo CFLAGS: -fopenmp
+#cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/okvClient.h"
 #include "../c/dpf.c"
@@ -34,7 +35,7 @@ func main() {
     
     //TODO test operations go here
     
-    for i:= 0; i < 30; i++ {
+    for i:= 0; i < 30; i++ { 
         addRow(25) 
     }
       
