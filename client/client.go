@@ -16,6 +16,7 @@ import (
     "log"
     "crypto/tls"
     "unsafe"
+    "time"
 )
 
 var serverA string
@@ -28,39 +29,86 @@ func main() {
     serverB = "127.0.0.1:4442"
     auditor = "127.0.0.1:4444"
     
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+    
+    connA, err := tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connA.Close()
+
+    connB, err := tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer connB.Close()
+
+    conn, err := tls.Dial("tcp", auditor, conf) 
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    defer conn.Close()
+    //send identification to auditor
+    l := 2
+    n, err := conn.Write(intToByte(l))
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
     
     log.SetFlags(log.Lshortfile)
     
     C.initializeClient()
     
     //TODO test operations go here
-    
-    for i:= 0; i < 30; i++ { 
-        addRow(25) 
+
+    for i:= 0; i < 10000; i++ { 
+        addRow(25, connA, connB) 
+        //if i % 1000 == 0 {
+        //    log.Println("added 1000 rows")
+        //}
     }
       
-    rowVal := readRow(13)
+    msg := []byte("this is the message!")
+    //measured ops here
+    startTime := time.Now()
+    
+    //for i:= 0; i < 10000; i++ { 
+        
+        writeRow(13, msg, conn, connA, connB)
+        //if i % 100 == 0 {
+        //    log.Println("completed 100 writes")
+        //}
+    //}
+    
+    elapsedTime := time.Since(startTime)
+    log.Printf("operation time: %s\n", elapsedTime)
+      
+    rowVal := readRow(13, connA, connB)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     
-    msg := []byte("this is the message!")
-    writeRow(13, msg)
+    writeRow(13, msg, conn, connA, connB)
     log.Println("wrote message")
-    //C.print_block(C.db[13].rowID)
     
-    rowVal = readRow(11)
+    rowVal = readRow(11, connA, connB)
     log.Println("rowVal 11 is ")
     log.Println(string(rowVal))    
     
-    rowVal = readRow(13)
+    rowVal = readRow(13, connA, connB)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal)) 
     
-    rowVal = readRow(11)
+    rowVal = readRow(11, connA, connB)
     log.Println("rowVal 11 is ")
     log.Println(string(rowVal))    
     
-    rowVal = readRow(13)
+    rowVal = readRow(13, connA, connB)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     
@@ -86,23 +134,8 @@ func intToByte(myInt int) (retBytes []byte){
 //if needed, consider splitting communication with each
 //server into a different goroutine so it can happen in parallel
 
-func addRow(dataSize int) {
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    
-    connA, err := tls.Dial("tcp", serverA, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer connA.Close()
-    connB, err := tls.Dial("tcp", serverB, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer connB.Close()
+func addRow(dataSize int, connA, connB *tls.Conn) {
+
     
     //allocate space to hold return values
     rowAKey := (*C.uchar)(C.malloc(16))
@@ -157,7 +190,10 @@ func addRow(dataSize int) {
         log.Println(n, err)
         return
     }
-        
+    
+    //log.Println(C.GoBytes(unsafe.Pointer(rowAKey), 16))
+    //log.Println(C.GoBytes(unsafe.Pointer(rowBKey), 16))
+    
     newIndex := make([]byte, 4)
     //read back the new index number
     for count := 0; count < 4; {
@@ -183,21 +219,7 @@ func addRow(dataSize int) {
     C.addAddr(C.int(byteToInt(newIndex)), (*C.uchar)(&newRowID[0]))
 }
 
-func readRow(localIndex int) ([]byte){
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    
-    connA, err := tls.Dial("tcp", serverA, conf)
-    if err != nil {
-        log.Println(err)
-    }
-    defer connA.Close()
-    connB, err := tls.Dial("tcp", serverB, conf)
-    if err != nil {
-        log.Println(err)
-    }
-    defer connB.Close()
+func readRow(localIndex int, connA, connB *tls.Conn) ([]byte){
     
     //1 byte connection type 2
     connType := make([]byte, 1)
@@ -289,7 +311,7 @@ func readRow(localIndex int) ([]byte){
     return C.GoBytes(unsafe.Pointer(C.outData), size)
 }
 
-func writeRow(localIndex int, data []byte) {
+func writeRow(localIndex int, data []byte, conn, connA, connB *tls.Conn) {
     
     dataSize := len(data)
     querySize := make([]byte, 4)
@@ -304,8 +326,8 @@ func writeRow(localIndex int, data []byte) {
     flag1 := make(chan int)
     flag2 := make(chan int)
 
-    go writeRowServerA(dataSize, intQuerySize, localIndex, flag1)
-    go writeRowServerB(dataSize, intQuerySize, flag2)
+    go writeRowServerA(dataSize, intQuerySize, localIndex, flag1, conn, connA)
+    go writeRowServerB(dataSize, intQuerySize, flag2, connB)
     
     //wait for connections to be handled before returning
     done1 := <- flag1
@@ -316,16 +338,7 @@ func writeRow(localIndex int, data []byte) {
     }
 }
 
-func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    connA, err := tls.Dial("tcp", serverA, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer connA.Close()
+func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, conn, connA *tls.Conn) {
     
     //1 byte connection type 3
     connType := make([]byte, 1)
@@ -384,22 +397,12 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int) {
     }
     
     //comment this line to temporarily remove auditing
-    writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed)
+    writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed, conn)
     flag <- 1
     return
 }
 
-func writeRowServerB(dataSize, querySize int, flag chan int) {
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    
-    connB, err := tls.Dial("tcp", serverB, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer connB.Close()
+func writeRowServerB(dataSize, querySize int, flag chan int, connB *tls.Conn) {
     
     //1 byte connection type 3
     connType := make([]byte, 1)
@@ -437,34 +440,16 @@ func writeRowServerB(dataSize, querySize int, flag chan int) {
     return
 }
 
-func writeRowAuditor(index int, layers C.int, seed []byte) {
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    
-    //connect to auditor
-    conn, err := tls.Dial("tcp", auditor, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer conn.Close()
+func writeRowAuditor(index int, layers C.int, seed []byte, conn *tls.Conn) {
         
     //prepare the auditor message
     C.prepAudit(C.int(index), layers, (*C.uchar)(&seed[0]))
     
     //log.Println(int(layers))  
     
-    //send identification and
     //send layers to auditor
-    l := 2
-    n, err := conn.Write(intToByte(l))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
     
-    n, err = conn.Write(intToByte(int(layers)))
+    n, err := conn.Write(intToByte(int(layers)))
     if err != nil {
         log.Println(n, err)
         return

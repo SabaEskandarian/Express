@@ -39,35 +39,38 @@ func main() {
         return
     }
     defer ln.Close() 
+    
+    flag1 := make(chan int)
+    flag2 := make(chan int)
+    flag3 := make(chan int)
+    
+    conn, err := ln.Accept()
+    if err != nil {
+        log.Println(err)
+    }
+    conn.SetDeadline(time.Time{})
+    go handleConnection(conn, flag1)
+    
+    conn2, err := ln.Accept()
+    if err != nil {
+        log.Println(err)
+    }
+    conn2.SetDeadline(time.Time{})
+    go handleConnection(conn2, flag2)
+    
+    conn3, err := ln.Accept()
+    if err != nil {
+        log.Println(err)
+    }
+    conn3.SetDeadline(time.Time{})
+    go handleConnection(conn3, flag3)
+    
 
     for {
-        flag1 := make(chan int)
-        flag2 := make(chan int)
-        flag3 := make(chan int)
-
-        conn, err := ln.Accept()
-        if err != nil {
-            log.Println(err)
-            continue
-        }
-        conn.SetDeadline(time.Time{})
-        go handleConnection(conn, flag1)
-        
-        conn2, err := ln.Accept()
-        if err != nil {
-            log.Println(err)
-            continue
-        }
-        conn2.SetDeadline(time.Time{})
-        go handleConnection(conn2, flag2)
-        
-        conn3, err := ln.Accept()
-        if err != nil {
-            log.Println(err)
-            continue
-        }
-        conn3.SetDeadline(time.Time{})
-        go handleConnection(conn3, flag3)
+        //tell the goroutines to get started
+        flag1 <- 1
+        flag2 <- 2
+        flag3 <- 3
         
         //wait for the connections to be handled
         done1 := <- flag1
@@ -117,7 +120,7 @@ func intToByte(myInt int) (retBytes []byte){
 
 func handleConnection(conn net.Conn, flag chan int) {
     defer conn.Close()
-    
+      
     //determine who is contacting the auditor
     count := 0
     UorSBytes:= make([]byte, 4)
@@ -130,104 +133,109 @@ func handleConnection(conn net.Conn, flag chan int) {
     }
     UorS := byteToInt(UorSBytes)
     
-    //get input
-    if UorS == 2 { //user
-        
-        layersInput := make([]byte, 4)
-        for count = 0; count < 4; {
-            n, err := conn.Read(layersInput[count:])
-            count += n
-            if err != nil && count != 4{
-                log.Println(err)
-                log.Println(n)
+    for{
+        //wait for signal to start
+         <- flag
+        //get input
+        if UorS == 2 { //user
+            
+            layersInput := make([]byte, 4)
+            for count = 0; count < 4; {
+                n, err := conn.Read(layersInput[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                    return
+                }
             }
-        }
-        layers[2] = byteToInt(layersInput)
-        
-        dataTransferSize := layers[2]
-        userBits = make([]byte, dataTransferSize)
-        for count = 0; count < dataTransferSize; {
-            n, err:= conn.Read(userBits[count:])
-            count += n
-            if err != nil && err != io.EOF && count != dataTransferSize {
-                log.Println(err)
+            layers[2] = byteToInt(layersInput)
+            
+            dataTransferSize := layers[2]
+            userBits = make([]byte, dataTransferSize)
+            for count = 0; count < dataTransferSize; {
+                n, err:= conn.Read(userBits[count:])
+                count += n
+                if err != nil && err != io.EOF && count != dataTransferSize {
+                    log.Println(err)
+                }
             }
-        }
 
-        count = 0
-        dataTransferSize = layers[2]*16
-        userNonZeros = make([]byte, dataTransferSize)
-        for count < int(dataTransferSize) {
-            n, err:= conn.Read(userNonZeros[count:])
-            count += n
-            if err != nil && err != io.EOF && count != dataTransferSize {
-                log.Println(err)
+            count = 0
+            dataTransferSize = layers[2]*16
+            userNonZeros = make([]byte, dataTransferSize)
+            for count < int(dataTransferSize) {
+                n, err:= conn.Read(userNonZeros[count:])
+                count += n
+                if err != nil && err != io.EOF && count != dataTransferSize {
+                    log.Println(err)
+                }
             }
-        }
 
-    } else if UorS == 1 { //server A
-        layersInput := make([]byte, 4)
-        for count = 0; count < 4; {
-            n, err := conn.Read(layersInput[count:])
-            count += n
-            if err != nil && count != 4{
-                log.Println(err)
-                log.Println(n)
+        } else if UorS == 1 { //server A
+            layersInput := make([]byte, 4)
+            for count = 0; count < 4; {
+                n, err := conn.Read(layersInput[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                    return
+                }
+            }
+            layers[1] = byteToInt(layersInput)
+            
+            dataTransferSize := layers[1]*2*16
+            serverAInput = make([]byte, dataTransferSize)
+            for count = 0; count < dataTransferSize; {
+                n, err:= conn.Read(serverAInput[count:])
+                count += n
+                if err != nil && err != io.EOF && count != dataTransferSize{
+                    log.Println(err)
+                }
+            }
+        } else if UorS == 0 { //server B
+            layersInput := make([]byte, 4)
+            for count = 0; count < 4; {
+                n, err := conn.Read(layersInput[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)  
+                    log.Println(n)
+                    return
+                }
+            }
+            layers[0] = byteToInt(layersInput)
+            
+            dataTransferSize := layers[0]*2*16
+            serverBInput = make([]byte, dataTransferSize)
+            for count = 0; count < dataTransferSize; {
+                n, err:= conn.Read(serverBInput[count:])
+                count += n
+                if err != nil && err != io.EOF && count != dataTransferSize {
+                    log.Println(err)
+                }
             }
         }
-        layers[1] = byteToInt(layersInput)
         
-        dataTransferSize := layers[1]*2*16
-        serverAInput = make([]byte, dataTransferSize)
-        for count = 0; count < dataTransferSize; {
-            n, err:= conn.Read(serverAInput[count:])
-            count += n
-            if err != nil && err != io.EOF && count != dataTransferSize{
-                log.Println(err)
-            }
-        }
-    } else if UorS == 0 { //server B
-        layersInput := make([]byte, 4)
-        for count = 0; count < 4; {
-            n, err := conn.Read(layersInput[count:])
-            count += n
-            if err != nil && count != 4{
-                log.Println(err)  
-                log.Println(n)
-            }
-        }
-        layers[0] = byteToInt(layersInput)
+        //write to flag saying we got the input
+        flag <- 1
         
-        dataTransferSize := layers[0]*2*16
-        serverBInput = make([]byte, dataTransferSize)
-        for count = 0; count < dataTransferSize; {
-            n, err:= conn.Read(serverBInput[count:])
-            count += n
-            if err != nil && err != io.EOF && count != dataTransferSize {
-                log.Println(err)
-            }
+        //wait for auditor
+        auditSuccess:= <- flag
+        
+        if auditSuccess == 0 {
+            log.Println("auditing failed? :(")
+            //return
         }
+        
+        //write back to user/server saying auditing succeeded
+        auditPass :=make([]byte,1)
+        auditPass[0] = byte(auditSuccess)
+        n, err := conn.Write(auditPass)
+        if err != nil {
+            log.Println(n, err)
+            return
+        }  
     }
-    
-    //write to flag saying we got the input
-    flag <- 1
-    
-    //wait for auditor
-    auditSuccess:= <- flag
-    
-    if auditSuccess == 0 {
-        log.Println("auditing failed? :(")
-        //return
-    }
-    
-    //write back to user/server saying auditing succeeded
-    auditPass :=make([]byte,1)
-    auditPass[0] = byte(auditSuccess)
-    n, err := conn.Write(auditPass)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-
-    return
 }
