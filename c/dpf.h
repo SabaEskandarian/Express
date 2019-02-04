@@ -46,14 +46,18 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
 //DPF checking functions
 
 void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output);
+void digest_message(const unsigned char *message, size_t message_len, unsigned char **digest, unsigned int *digest_len);
 
 //client check inputs
 void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn);
+void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *va, uint128_t *vb, uint8_t **digestA, uint8_t **digestB);
 
 //server check inputs
 void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors);
+void riposteServerVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *vector, uint128_t *mVector, uint128_t *cValue);
 
 //auditor functionality
 int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_t* outVectorsAIn, uint8_t* outVectorsBIn);
+int riposteAuditorVerify(uint8_t *digestA, uint8_t *digestB, uint8_t *ma, uint8_t *mb, uint128_t ca, uint128_t cb, int dbSize);
 
 #endif

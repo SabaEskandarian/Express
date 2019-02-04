@@ -581,7 +581,102 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_
     return pass;
 }
 
-int dpf_tests(){
+void digest_message(const unsigned char *message, size_t message_len, unsigned char **digest, unsigned int *digest_len)
+{
+	EVP_MD_CTX *mdctx;
+
+	if((mdctx = EVP_MD_CTX_create()) == NULL)
+		printf("digest error\n");
+
+	if(1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
+		printf("digest error\n");
+
+	if(1 != EVP_DigestUpdate(mdctx, message, message_len))
+		printf("digest error\n");
+
+	if((*digest = (unsigned char *)OPENSSL_malloc(EVP_MD_size(EVP_sha256()))) == NULL)
+		printf("digest error\n");
+
+	if(1 != EVP_DigestFinal_ex(mdctx, *digest, digest_len))
+		printf("digest error\n");
+
+	EVP_MD_CTX_destroy(mdctx);
+}
+
+void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *va, uint128_t *vb, uint8_t **digestA, uint8_t **digestB){
+    uint128_t mVectorA[dbSize];
+    uint128_t mVectorB[dbSize];
+    uint128_t prfOutput;
+    
+    #pragma omp parallel for \
+    default(shared) private(prfOutput)
+    for(int i = 0; i < dbSize; i++){
+        PRF(ctx, seed, 0, i, &prfOutput);
+        mVectorA[i] = va[i] ^ prfOutput;
+        mVectorB[i] = vb[i] ^ prfOutput;
+    }
+    
+    int len = 0;
+    digest_message((uint8_t*)mVectorA, dbSize*16, digestA, &len);
+    digest_message((uint8_t*)mVectorB, dbSize*16, digestB, &len);
+}
+
+void riposteServerVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *vector, uint128_t *mVector, uint128_t *cValue){
+    
+    PRF(ctx, seed, 1, 0, cValue);
+    uint128_t prfOutput;
+    
+    #pragma omp parallel for \
+    default(shared) private(prfOutput)
+    for(int i = 0; i < dbSize; i++){
+        PRF(ctx, seed, 0, i, &prfOutput);
+        mVector[i] = vector[i] ^ prfOutput;
+    }
+}
+
+int riposteAuditorVerify(uint8_t *digestA, uint8_t *digestB, uint8_t *ma, uint8_t *mb, uint128_t ca, uint128_t cb, int dbSize){
+
+    int pass = 1;
+    
+    //check that the masked seeds are equal
+    if(ca != cb){
+        printf("failed audit, masked seeds unequal\n");
+        pass = 0;
+    }
+    
+    //check that m vectors differ in only 1 place
+    int differenceCount = 0;
+    
+    #pragma omp parallel for
+    for(int i = 0; i < dbSize; i++) {
+        if(memcmp(&ma[i*16], &mb[i*16], 16) != 0){
+            #pragma omp critical
+            differenceCount++;
+        }
+    }
+    if(differenceCount != 1){
+        printf("failed audit, difference count incorrect %d\n", differenceCount);
+        pass = 0;
+    }
+
+    //check that the digests match their expected values
+    int len = 0;
+    uint8_t *newDigestA = (uint8_t*)malloc(32);
+    uint8_t *newDigestB = (uint8_t*)malloc(32);
+    digest_message(ma, dbSize*16, &newDigestA, &len);
+    digest_message(mb, dbSize*16, &newDigestB, &len);
+    if(memcmp(digestA, newDigestA, 32) != 0 || memcmp(digestB, newDigestB, 32) != 0){
+        printf("failed audit, digest mismatch %d %d\n", memcmp(digestA, newDigestA, 32), memcmp(digestB, newDigestB, 32) != 0);
+        pass = 0;
+    }
+    
+    free(newDigestA);
+    free(newDigestB);
+    
+    return pass;
+}
+
+int main(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
     EVP_CIPHER_CTX *ctx;
@@ -599,6 +694,7 @@ int dpf_tests(){
 	unsigned char *k1;
     
     
+    //functionality test for dpf
     char* data = "this is the data!";
     int dataSize = strlen(data)+1;
 
@@ -631,7 +727,9 @@ int dpf_tests(){
     }
     printf("\n");
                 //return 0;
+    
 
+    
     //now we'll do a simple functionality test of the dpf checking.
     //this will in no way be rigorous or even representative of the
     //usual use case since all the evaluation points are small
@@ -669,14 +767,39 @@ int dpf_tests(){
 
     int pass = -1;
     
+    pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+    printf("dpf check verification: %d (should be 1)\n", pass);
+    
     //tamper with dpf outputs to see if auditor catches it
     //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
+    //pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+    //printf("dpf check verification: %d (should be 0)\n", pass);
     
-    pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+    //now test the riposte auditing
+    free(outVectorsA);
+    free(outVectorsB);
+    outVectorsA = malloc(sizeof(uint128_t)*dbSize);
+    outVectorsB = malloc(sizeof(uint128_t)*dbSize);
+    uint128_t cValueA = 0;
+    uint128_t cValueB = 0;
+    uint8_t *digestA = (uint8_t*) malloc(32);
+    uint8_t *digestB = (uint8_t*) malloc(32);
+
+    riposteClientVerify(ctx, *seed, dbSize, vectorsA, vectorsB, &digestA, &digestB);
+
+    riposteServerVerify(ctx, *seed, dbSize, vectorsA, outVectorsA, &cValueA);
+    riposteServerVerify(ctx, *seed, dbSize, vectorsB, outVectorsB, &cValueB);
     
-    printf("dpf check verification: %d\n", pass);
+    pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSize);
+    printf("riposte dpf check verification: %d (should be 1)\n", pass);
     
+    //tamper with dpf outputs to see if auditor catches it
+    //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
+    //pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSize);
+    //printf("riposte dpf check verification: %d (should be 0)\n", pass);
+
     
+    /*
         //performance test of the dpf
     
     char *s[10];
@@ -737,6 +860,7 @@ int dpf_tests(){
         int msec = diff * 1000 / CLOCKS_PER_SEC;
         printf("Time taken for string %d: %d milliseconds\n", j, msec);
     }
+    */
     
 	return 0;
 }
