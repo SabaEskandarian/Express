@@ -604,10 +604,10 @@ void digest_message(const unsigned char *message, size_t message_len, unsigned c
 }
 
 void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *va, uint128_t *vb, uint8_t **digestA, uint8_t **digestB){
-    uint128_t mVectorA[dbSize];
-    uint128_t mVectorB[dbSize];
+    uint128_t *mVectorA = (uint128_t*) malloc(dbSize*16);
+    uint128_t *mVectorB = (uint128_t*) malloc(dbSize*16);
     uint128_t prfOutput;
-    
+
     #pragma omp parallel for \
     default(shared) private(prfOutput)
     for(int i = 0; i < dbSize; i++){
@@ -619,6 +619,8 @@ void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint12
     int len = 0;
     digest_message((uint8_t*)mVectorA, dbSize*16, digestA, &len);
     digest_message((uint8_t*)mVectorB, dbSize*16, digestB, &len);
+    free(mVectorA);
+    free(mVectorB);
 }
 
 void riposteServerVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *vector, uint128_t *mVector, uint128_t *cValue){
@@ -797,10 +799,105 @@ int main(){
     //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
     //pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSize);
     //printf("riposte dpf check verification: %d (should be 0)\n", pass);
-
     
-    /*
-        //performance test of the dpf
+    //TODO: performance test of dpf verification
+    
+    int dbSizes[4];
+    dbSizes[0] = 1000;
+    dbSizes[1] = 10000;
+    dbSizes[2] = 100000;
+    dbSizes[3] = 1000000;
+    int dbLayer[4];
+    dbLayer[0] = 10;
+    dbLayer[1] = 14;
+    dbLayer[2] = 17;
+    dbLayer[3] = 20;
+    clock_t begin, elapsed;
+
+     seed = malloc(sizeof(uint128_t));
+    *seed = getRandomBlock(); 
+    
+    vectorsA = malloc(sizeof(uint128_t)*dbSizes[3]);
+    vectorsB = malloc(sizeof(uint128_t)*dbSizes[3]);
+    
+    memset(vectorsA,'a',dbSizes[3]*16);
+    memset(vectorsB,'a',dbSizes[3]*16);
+    vectorsA[10] = 13;
+    vectorsB[10] = 12;
+        
+    //us
+    for(int i = 0; i < 4; i++){
+        bits = malloc(dbLayer[i]);
+        nonZeroVectors = malloc(sizeof(uint128_t)*dbLayer[i]);
+        outVectorsA = malloc(sizeof(uint128_t)*2*dbLayer[i]);
+        outVectorsB = malloc(sizeof(uint128_t)*2*dbLayer[i]);
+        
+        begin = clock();
+        clientVerify(ctx, *seed, 10, vectorsA[10], vectorsB[10], dbLayer[i], bits, (uint8_t*)nonZeroVectors);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        
+        begin = clock();
+        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsA, outVectorsA);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsB, outVectorsB);
+
+        pass = 0;
+        begin = clock();
+        pass = auditorVerify(dbLayer[i], bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("auditor verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        if(pass == 0){
+            printf("dpf check verification failed %d\n", i);
+        }
+        
+        free(bits);
+        free(nonZeroVectors);
+        free(outVectorsA);
+        free(outVectorsB);
+    }
+    
+    //riposte
+    for(int i = 0; i < 4; i++){ //something went wrong at 4
+        outVectorsA = malloc(sizeof(uint128_t)*dbSizes[i]);
+        outVectorsB = malloc(sizeof(uint128_t)*dbSizes[i]);
+        cValueA = 0;
+        cValueB = 0;
+        digestA = (uint8_t*) malloc(32);
+        digestB = (uint8_t*) malloc(32);
+        
+        
+        begin = clock();
+        riposteClientVerify(ctx, *seed, dbSizes[i], vectorsA, vectorsB, &digestA, &digestB);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("riposte client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        
+        begin = clock();
+        riposteServerVerify(ctx, *seed, dbSizes[i], vectorsA, outVectorsA, &cValueA);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("riposte server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        riposteServerVerify(ctx, *seed, dbSizes[i], vectorsB, outVectorsB, &cValueB);
+        
+        pass = 0;
+        begin = clock();
+        pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSizes[i]);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("riposte auditor verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        if(pass == 0){
+            printf("riposte dpf check verification failed %d\n", i);
+        }
+        
+        free(outVectorsA);
+        free(outVectorsB);
+        free(digestA);
+        free(digestB);
+    }
+    
+    free(vectorsA);
+    free(vectorsB);
+    
+    //performance test of the dpf
     
     char *s[10];
     
@@ -810,6 +907,7 @@ int main(){
     s[3] = (char*) malloc(1000);
     s[4] = (char*) malloc(10000);
     s[5] = (char*) malloc(100000);
+    s[6] = (char*) malloc(1000000);
     memset(s[0], 'a', 1);
     memset(s[0]+1, '\0', 1);
     memset(s[1], 'a', 15);
@@ -821,8 +919,9 @@ int main(){
     memset(s[4], 'a', 9999);
     memset(s[4]+9999, '\0', 1);
     memset(s[5], 'a', 99999);
-    memset(s[5]+99999, '\0', 1);
-    
+    memset(s[5]+99999, '\0', 1);    
+    memset(s[6], 'a', 999999);
+    memset(s[6]+999999, '\0', 1);
        
     free(dataShare0);
     free(dataShare1);
@@ -831,7 +930,7 @@ int main(){
     dataShare0 = (uint8_t*) malloc(strlen(s[5])+1);
     dataShare1 = (uint8_t*) malloc(strlen(s[5])+1);
     
-    for(int j = 0; j < 6; j++){
+    for(int j = 2; j < 6; j++){//skip to the sizes we care about
         dataSize = strlen(s[j])+1;
         genDPF(ctx, 128, 300, dataSize, s[j], &k0, &k1);
         res1 = evalDPF(ctx, k0, 12, dataSize, dataShare0);
@@ -850,17 +949,46 @@ int main(){
         if(strcmp(recoveredData, s[j]) != 0){
             printf("string %d recovered incorrect data", j);
         }
-    
+
         clock_t start = clock(), diff;
+        #pragma omp parallel for
+        for(int i = 0; i < 1000; i++){
+                res1 = evalDPF(ctx, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
+        }
+        diff = clock() - start;
+        int msec = diff * 1000 / CLOCKS_PER_SEC;
+        printf("Time taken for string %d, db size 1,000: %d milliseconds\n", j, msec);
+        
+        start = clock();
+        #pragma omp parallel for
+        for(int i = 0; i < 10000; i++){
+                res1 = evalDPF(ctx, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
+        }
+        diff = clock() - start;
+        msec = diff * 1000 / CLOCKS_PER_SEC;
+        printf("Time taken for string %d, db size 10,000: %d milliseconds\n", j, msec);
+        
+        start = clock();
+        #pragma omp parallel for
         for(int i = 0; i < 100000; i++){
                 res1 = evalDPF(ctx, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
         }
         diff = clock() - start;
+        msec = diff * 1000 / CLOCKS_PER_SEC;
+        printf("Time taken for string %d, db size 100,000: %d milliseconds\n", j, msec);
+        
+        /*
+        start = clock();
+        #pragma omp parallel for
+        for(int i = 0; i < 1000000; i++){
+                res1 = evalDPF(ctx, k0, i*((uint128_t)2<<70), dataSize, dataShare0);
+        }
+        diff = clock() - start;
+        msec = diff * 1000 / CLOCKS_PER_SEC;
+        printf("Time taken for string %d, db size 1,000,000: %d milliseconds\n", j, msec);
+        */
 
-        int msec = diff * 1000 / CLOCKS_PER_SEC;
-        printf("Time taken for string %d: %d milliseconds\n", j, msec);
     }
-    */
     
 	return 0;
 }

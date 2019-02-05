@@ -169,6 +169,8 @@ void processQuery(void){
     
     #pragma omp parallel for
     for(int i = 0; i < dbSize; i++){
+        //TODO: get rid of malloc/free inside of parallel loop
+        
         int len;
             
         int ds = db[i].dataSize;
