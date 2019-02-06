@@ -3,7 +3,7 @@
 package main
 
 /*
-#cgo CFLAGS: -fopenmp
+#cgo CFLAGS: -fopenmp -O2
 #cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/okv.h"

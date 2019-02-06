@@ -4,7 +4,7 @@ package main
 
 
 /*
-#cgo CFLAGS: -fopenmp
+#cgo CFLAGS: -fopenmp -O2
 #cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/okvClient.h"
@@ -50,6 +50,7 @@ func main() {
     C.initializeClient()
 
     //parameters for tests
+    //also run a version of some of these without the auditing for comparison
     //remember to start servers in order: auditor, server 1, server, client
     latencyTest := 1 //set to 0 for throughput test instead
     dataLen := 1000
@@ -60,8 +61,8 @@ func main() {
     //use the connections set up at the beginning to add a bunch of rows really fast
     for i:= 0; i < dbSize; i++ {
         addRow(dataLen, connA, connB) 
-        if i % 1000 == 0 {
-            log.Println("added 1000 rows")
+        if i % 10000 == 0 {
+            log.Println("added 10000 rows")
         }
     }
     
@@ -76,69 +77,86 @@ func main() {
         connA.Close()
         connB.Close()
         
-        //measured ops here
-        startTime := time.Now()
+        var totalTimeWrite time.Duration
+        var totalTimeRead time.Duration
         
-        //new connections to include them in measurement
-        connA, err = tls.Dial("tcp", serverA, conf)
-        if err != nil {
-            log.Println(err)
-            return
-        }
-        //defer connA.Close()
+        for i:=0; i < 10; i++{
+            //measured ops here
+            startTime := time.Now()
+            
+            //new connections to include them in measurement
+            connA, err = tls.Dial("tcp", serverA, conf)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            //defer connA.Close()
 
-        connB, err = tls.Dial("tcp", serverB, conf)
-        if err != nil {
-            log.Println(err)
-            return
-        }
-        //defer connB.Close()
-        conn, err := tls.Dial("tcp", auditor, conf) 
-        if err != nil {
-            log.Println(err)
-            return
-        }
-        defer conn.Close()
-        //send identification to auditor
-        l := 2
-        n, err := conn.Write(intToByte(l))
-        if err != nil {
-            log.Println(n, err)
-            return
+            connB, err = tls.Dial("tcp", serverB, conf)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            
+            //defer connB.Close()
+            conn, err := tls.Dial("tcp", auditor, conf) 
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            //defer conn.Close()
+            //send identification to auditor
+            l := 2
+            n, err := conn.Write(intToByte(l))
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+
+            writeRow(13, msg, conn, connA, connB)
+
+            elapsedTime := time.Since(startTime)
+            log.Printf("write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
+            totalTimeWrite += elapsedTime
+            
+            //next do a read
+            //close the connections
+            connA.Close()
+            connB.Close()
+            conn.Close()
+
+            //measured ops here
+            startTime = time.Now()
+            
+            //new connections to include them in measurement
+            connA, err = tls.Dial("tcp", serverA, conf)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            //defer connA.Close()
+
+            connB, err = tls.Dial("tcp", serverB, conf)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            //defer connB.Close()
+            
+            readRow(13, connA, connB)
+
+            elapsedTime = time.Since(startTime)
+            log.Printf("read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
+            totalTimeRead += elapsedTime
+
+            connA.Close()
+            connB.Close()
         }
         
-        writeRow(13, msg, conn, connA, connB)
+        log.Printf("average write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeWrite/10)
+        log.Printf("average read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeRead/10)
 
-        elapsedTime := time.Since(startTime)
-        log.Printf("write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
         
-        //next do a read
-        //close the connections
-        connA.Close()
-        connB.Close()
-
-        //measured ops here
-        startTime = time.Now()
-        
-        //new connections to include them in measurement
-        connA, err = tls.Dial("tcp", serverA, conf)
-        if err != nil {
-            log.Println(err)
-            return
-        }
-        defer connA.Close()
-
-        connB, err = tls.Dial("tcp", serverB, conf)
-        if err != nil {
-            log.Println(err)
-            return
-        }
-        defer connB.Close()
-        
-        readRow(13, connA, connB)
-
-        elapsedTime = time.Since(startTime)
-        log.Printf("read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
         
     } else { //throughput test
         
@@ -453,7 +471,7 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, con
         log.Println(n, err)
         return
     }
-    
+
     //read seed and layers from server A
     seed := make([]byte, 16)
     for count := 0; count < 16; {
@@ -465,7 +483,7 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, con
         }
     }
     //log.Println(seed)
-    
+
     layers := make([]byte, 4)
     for count := 0; count < 4; {
         n, err= connA.Read(layers[count:])

@@ -475,8 +475,10 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
     //printf("serverVerify\n");
     //don't modify vectors -- it should be treated as read-only, so make a copy
-    uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(uint128_t));
-    memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(uint128_t));
+    //uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(uint128_t));
+    //memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(uint128_t));
+    
+    uint128_t* vectorsWorkSpace = vectors;
     
     uint128_t prfOutput;
     uint128_t leftSum, rightSum;
@@ -538,7 +540,7 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         //print_block(leftSum);
         
     }
-    free(vectorsWorkSpace);
+    //free(vectorsWorkSpace);
 }
 
 //auditor functionality
@@ -761,11 +763,16 @@ int dpf_tests(){
         memcpy(&vectorsB[i], &res2, 16);
     }
     
+    uint128_t *vectorsACopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSize);
+    memcpy(vectorsACopy, vectorsA, 16*dbSize);        
+    uint128_t *vectorsBCopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSize);
+    memcpy(vectorsBCopy, vectorsB, 16*dbSize);
+    
     //run the dpf verification functions
     clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, (uint8_t*)nonZeroVectors);
 
-    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsA, outVectorsA);
-    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsB, outVectorsB);
+    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsACopy, outVectorsA);
+    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsBCopy, outVectorsB);
 
     int pass = -1;
     
@@ -778,6 +785,8 @@ int dpf_tests(){
     //printf("dpf check verification: %d (should be 0)\n", pass);
     
     //now test the riposte auditing
+    free(vectorsACopy);
+    free(vectorsBCopy);
     free(outVectorsA);
     free(outVectorsB);
     outVectorsA = malloc(sizeof(uint128_t)*dbSize);
@@ -800,7 +809,7 @@ int dpf_tests(){
     //pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSize);
     //printf("riposte dpf check verification: %d (should be 0)\n", pass);
     
-    //TODO: performance test of dpf verification
+    //performance test of dpf verification
     
     int dbSizes[4];
     dbSizes[0] = 1000;
@@ -832,16 +841,21 @@ int dpf_tests(){
         outVectorsA = malloc(sizeof(uint128_t)*2*dbLayer[i]);
         outVectorsB = malloc(sizeof(uint128_t)*2*dbLayer[i]);
         
+        vectorsACopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSizes[i]);
+        memcpy(vectorsACopy, vectorsA, 16*dbSizes[i]);        
+        vectorsBCopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSizes[i]);
+        memcpy(vectorsBCopy, vectorsB, 16*dbSizes[i]);
+        
         begin = clock();
         clientVerify(ctx, *seed, 10, vectorsA[10], vectorsB[10], dbLayer[i], bits, (uint8_t*)nonZeroVectors);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
         printf("client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
         
         begin = clock();
-        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsA, outVectorsA);
+        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsACopy, outVectorsA);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
         printf("server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
-        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsB, outVectorsB);
+        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsBCopy, outVectorsB);
 
         pass = 0;
         begin = clock();
@@ -852,6 +866,8 @@ int dpf_tests(){
             printf("dpf check verification failed %d\n", i);
         }
         
+        free(vectorsACopy);
+        free(vectorsBCopy);
         free(bits);
         free(nonZeroVectors);
         free(outVectorsA);

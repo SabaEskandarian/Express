@@ -3,7 +3,7 @@
 package main
 
 /*
-#cgo CFLAGS: -fopenmp
+#cgo CFLAGS: -fopenmp -O2
 #cgo LDFLAGS: -lcrypto -lm -fopenmp
 #include "../c/dpf.h"
 #include "../c/dpf.c"
@@ -58,15 +58,16 @@ func main() {
     conn2.SetDeadline(time.Time{})
     go handleConnection(conn2, flag2)
     
-    conn3, err := ln.Accept()
-    if err != nil {
-        log.Println(err)
-    }
-    conn3.SetDeadline(time.Time{})
-    go handleConnection(conn3, flag3)
-    
 
     for {
+        
+        conn3, err := ln.Accept() //I think this one will always be the client?
+        if err != nil {
+            log.Println(err)
+        }
+        conn3.SetDeadline(time.Time{})
+        go handleConnection(conn3, flag3)
+        
         //tell the goroutines to get started
         flag1 <- 1
         flag2 <- 2
@@ -100,7 +101,7 @@ func main() {
         flag1 <- auditResp
         flag2 <- auditResp
         flag3 <- auditResp
-        
+                
     }
 } 
 
@@ -228,7 +229,7 @@ func handleConnection(conn net.Conn, flag chan int) {
             log.Println("auditing failed? :(")
             //return
         }
-        
+
         //write back to user/server saying auditing succeeded
         auditPass :=make([]byte,1)
         auditPass[0] = byte(auditSuccess)
@@ -237,5 +238,10 @@ func handleConnection(conn net.Conn, flag chan int) {
             log.Println(n, err)
             return
         }  
+        
+        if UorS == 2 {
+            conn.Close()
+            return
+        }
     }
 }
