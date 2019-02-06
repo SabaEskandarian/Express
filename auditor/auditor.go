@@ -24,6 +24,10 @@ var serverBInput []byte
 var layers [3]int
 
 func main() {   
+    
+    //set to 1 for throughput
+    throughput := 0
+    
     log.SetFlags(log.Lshortfile)
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
@@ -49,24 +53,35 @@ func main() {
         log.Println(err)
     }
     conn.SetDeadline(time.Time{})
-    go handleConnection(conn, flag1)
+    go handleConnection(conn, flag1, throughput)
     
     conn2, err := ln.Accept()
     if err != nil {
         log.Println(err)
     }
     conn2.SetDeadline(time.Time{})
-    go handleConnection(conn2, flag2)
+    go handleConnection(conn2, flag2, throughput)
     
-
-    for {
-        
-        conn3, err := ln.Accept() //I think this one will always be the client?
+    if throughput == 1 {
+        conn3, err := ln.Accept() //this should always be the client
         if err != nil {
             log.Println(err)
         }
         conn3.SetDeadline(time.Time{})
-        go handleConnection(conn3, flag3)
+        go handleConnection(conn3, flag3, throughput)
+    }
+    
+
+    for {
+        
+        if throughput == 0{
+            conn3, err := ln.Accept() //this should always be the client
+            if err != nil {
+                log.Println(err)
+            }
+            conn3.SetDeadline(time.Time{})
+            go handleConnection(conn3, flag3, throughput)
+        }
         
         //tell the goroutines to get started
         flag1 <- 1
@@ -119,7 +134,7 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func handleConnection(conn net.Conn, flag chan int) {
+func handleConnection(conn net.Conn, flag chan int, throughput int) {
     defer conn.Close()
       
     //determine who is contacting the auditor
@@ -239,7 +254,8 @@ func handleConnection(conn net.Conn, flag chan int) {
             return
         }  
         
-        if UorS == 2 {
+        
+        if throughput == 0 && UorS == 2 {
             conn.Close()
             return
         }
