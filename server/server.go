@@ -292,7 +292,7 @@ func handleWrite(conn net.Conn, leader int, conn2 *tls.Conn) {
     }
     
     //process query
-    C.processQuery()  
+    C.processQuery()
 
     //send audit info to auditor 
     

@@ -50,7 +50,6 @@ func main() {
     C.initializeClient()
 
     //parameters for tests
-    //also run a version of some of these without the auditing for comparison
     //remember to start servers in order: auditor, server 1, server, client
     latencyTest := 1 //set to 0 for throughput test instead
     dataLen := 1000

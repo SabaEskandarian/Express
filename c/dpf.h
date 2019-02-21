@@ -10,8 +10,6 @@
 #include <openssl/err.h>
 #include <string.h>
 
-#include <gmp.h>
-
 //defining these here
 //so they don't have to be repeated across okv and okvClient
 #define MAX_LAYERS 20

@@ -167,9 +167,17 @@ void processQuery(void){
     if(1 != EVP_EncryptUpdate(rerandCtx, (uint8_t*)&rerandSeed, &len2, (uint8_t*)&rerandCounter, 16))
         printf("errors occured in getting rerandomization seed\n");
     
-    #pragma omp parallel for
+    uint8_t* dataShare = (uint8_t*) malloc(MAX_DATA_SIZE+16);
+    memset(dataShare, 0, MAX_DATA_SIZE+16);
+    uint8_t* maskTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
+    uint8_t* seedTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
+    
+    
+    //use the different threads for different queries, not to speed up each query
+    //#pragma omp parallel for
+    //Note: if putting back this pragma, mallocs above need to go inside loop
+    //or be replaced by a big buffer where each thread uses its own part
     for(int i = 0; i < dbSize; i++){
-        //TODO: get rid of malloc/free inside of parallel loop
         
         int len;
             
@@ -177,10 +185,11 @@ void processQuery(void){
         if(pqDataSize < ds){
             ds = pqDataSize;
         }
-        uint8_t* dataShare = (uint8_t*) malloc(db[i].dataSize+16);
-        memset(dataShare, 0, db[i].dataSize+16);
-        uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
-        uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
+        
+        //uint8_t* dataShare = (uint8_t*) malloc(db[i].dataSize+16);
+        //memset(dataShare, 0, db[i].dataSize+16);
+        //uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
+        //uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
         
         //run dpf on each input
         vector[i] = evalDPF(ctx, pendingQuery, db[i].rowID, ds, dataShare);
