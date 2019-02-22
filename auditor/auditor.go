@@ -3,8 +3,8 @@
 package main
 
 /*
-#cgo CFLAGS: -fopenmp -O2
-#cgo LDFLAGS: -lcrypto -lm -fopenmp
+#cgo CFLAGS: -O2
+#cgo LDFLAGS: -lcrypto -lm
 #include "../c/dpf.h"
 #include "../c/dpf.c"
 */
@@ -15,18 +15,11 @@ import (
     "net"
     "time"
     "io"
+    "golang.org/x/crypto/nacl/box"
+    "strings"
 )
 
-var userBits []byte
-var userNonZeros []byte
-var serverAInput []byte
-var serverBInput []byte
-var layers [3]int
-
 func main() {   
-    
-    //set to 1 for throughput
-    throughput := 0
     
     log.SetFlags(log.Lshortfile)
 
@@ -44,81 +37,37 @@ func main() {
     }
     defer ln.Close() 
     
-    flag1 := make(chan int)
-    flag2 := make(chan int)
-    flag3 := make(chan int)
     
-    conn, err := ln.Accept()
+    //using a deterministic source of randomness for testing
+    //this is just for testing so the different parties share a key
+    //in reality the public keys of the servers/auditors should be known 
+    //ahead of time and those would be used
+    clientPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("c",10000)))
     if err != nil {
         log.Println(err)
-    }
-    conn.SetDeadline(time.Time{})
-    go handleConnection(conn, flag1, throughput)
-    
-    conn2, err := ln.Accept()
+        return
+    }    
+    s2PublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("b",10000)))
     if err != nil {
         log.Println(err)
+        return
     }
-    conn2.SetDeadline(time.Time{})
-    go handleConnection(conn2, flag2, throughput)
+    _, auditorSecretKey, err := box.GenerateKey(strings.NewReader(strings.Repeat("a",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }
     
-    if throughput == 1 {
-        conn3, err := ln.Accept() //this should always be the client
+    for {
+        conn, err := ln.Accept()
         if err != nil {
             log.Println(err)
         }
-        conn3.SetDeadline(time.Time{})
-        go handleConnection(conn3, flag3, throughput)
+        conn.SetDeadline(time.Time{})
+        
+        go handleConnection(conn, auditorSecretKey, clientPublicKey, s2PublicKey)
     }
-    
-
-    for {
-        
-        if throughput == 0{
-            conn3, err := ln.Accept() //this should always be the client
-            if err != nil {
-                log.Println(err)
-            }
-            conn3.SetDeadline(time.Time{})
-            go handleConnection(conn3, flag3, throughput)
-        }
-        
-        //tell the goroutines to get started
-        flag1 <- 1
-        flag2 <- 2
-        flag3 <- 3
-        
-        //wait for the connections to be handled
-        done1 := <- flag1
-        done2 := <- flag2
-        done3 := <- flag3
-        
-        if done1 != 1 || done2 != 1 || done3 != 1 {
-            log.Println("something went wrong in getting audit messages")
-        }
-        
-        if layers[0] != layers[1] || layers[1] != layers[2] {
-            log.Println("disagreement about number of layers!")
-        }
-        
-        //log.Println(layers[0])
-        
-        //log.Println("inputs received")
-        //log.Println(userBits)
-        //log.Println(userNonZeros)
-        //log.Println(serverAInput)
-        //log.Println(serverBInput) 
-        
-        //run the auditing
-        auditResp := int(C.auditorVerify(C.int(layers[0]), (*C.uchar)(&userBits[0]), (*C.uchar)(&userNonZeros[0]), (*C.uchar)(&serverAInput[0]), (*C.uchar)(&serverBInput[0])));
-
-        //send responses
-        flag1 <- auditResp
-        flag2 <- auditResp
-        flag3 <- auditResp
-                
-    }
-} 
+}
 
 func byteToInt(myBytes []byte) (x int) {
     x = int(myBytes[3]) << 24 + int(myBytes[2]) << 16 + int(myBytes[1]) << 8 + int(myBytes[0])
@@ -134,130 +83,105 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func handleConnection(conn net.Conn, flag chan int, throughput int) {
+func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2PublicKey *[32]byte) {
     defer conn.Close()
-      
-    //determine who is contacting the auditor
-    count := 0
-    UorSBytes:= make([]byte, 4)
-    for count = 0; count < 4; {
-        n, err:= conn.Read(UorSBytes)
+    
+    var userBits []byte
+    var userNonZeros []byte
+    var serverAInput []byte
+    var serverBInput []byte
+    var layers [2]int
+    
+    //read server 1 input
+    layersInput := make([]byte, 4)
+    for count := 0; count < 4; {
+        n, err := conn.Read(layersInput[count:])
         count += n
-        if err != nil && count != 4 {
+        if err != nil && count != 4{
+            log.Println(err)
+            log.Println(n)
+            return
+        }
+    }
+    layers[0] = byteToInt(layersInput)
+    
+    dataTransferSize := layers[1]*2*16
+    serverAInput = make([]byte, dataTransferSize)
+    for count := 0; count < dataTransferSize; {
+        n, err:= conn.Read(serverAInput[count:])
+        count += n
+        if err != nil && err != io.EOF && count != dataTransferSize{
             log.Println(err)
         }
     }
-    UorS := byteToInt(UorSBytes)
     
-    for{
-        //wait for signal to start
-         <- flag
-        //get input
-        if UorS == 2 { //user
-            
-            layersInput := make([]byte, 4)
-            for count = 0; count < 4; {
-                n, err := conn.Read(layersInput[count:])
-                count += n
-                if err != nil && count != 4{
-                    log.Println(err)
-                    log.Println(n)
-                    return
-                }
-            }
-            layers[2] = byteToInt(layersInput)
-            
-            dataTransferSize := layers[2]
-            userBits = make([]byte, dataTransferSize)
-            for count = 0; count < dataTransferSize; {
-                n, err:= conn.Read(userBits[count:])
-                count += n
-                if err != nil && err != io.EOF && count != dataTransferSize {
-                    log.Println(err)
-                }
-            }
-
-            count = 0
-            dataTransferSize = layers[2]*16
-            userNonZeros = make([]byte, dataTransferSize)
-            for count < int(dataTransferSize) {
-                n, err:= conn.Read(userNonZeros[count:])
-                count += n
-                if err != nil && err != io.EOF && count != dataTransferSize {
-                    log.Println(err)
-                }
-            }
-
-        } else if UorS == 1 { //server A
-            layersInput := make([]byte, 4)
-            for count = 0; count < 4; {
-                n, err := conn.Read(layersInput[count:])
-                count += n
-                if err != nil && count != 4{
-                    log.Println(err)
-                    log.Println(n)
-                    return
-                }
-            }
-            layers[1] = byteToInt(layersInput)
-            
-            dataTransferSize := layers[1]*2*16
-            serverAInput = make([]byte, dataTransferSize)
-            for count = 0; count < dataTransferSize; {
-                n, err:= conn.Read(serverAInput[count:])
-                count += n
-                if err != nil && err != io.EOF && count != dataTransferSize{
-                    log.Println(err)
-                }
-            }
-        } else if UorS == 0 { //server B
-            layersInput := make([]byte, 4)
-            for count = 0; count < 4; {
-                n, err := conn.Read(layersInput[count:])
-                count += n
-                if err != nil && count != 4{
-                    log.Println(err)  
-                    log.Println(n)
-                    return
-                }
-            }
-            layers[0] = byteToInt(layersInput)
-            
-            dataTransferSize := layers[0]*2*16
-            serverBInput = make([]byte, dataTransferSize)
-            for count = 0; count < dataTransferSize; {
-                n, err:= conn.Read(serverBInput[count:])
-                count += n
-                if err != nil && err != io.EOF && count != dataTransferSize {
-                    log.Println(err)
-                }
-            }
+    
+    //read, unbox, and parse server 2 input
+    s2Input := make([]byte, 24+4+dataTransferSize+box.Overhead)
+    for count := 0; count < dataTransferSize; {
+        n, err:= conn.Read(s2Input[count:])
+        count += n
+        if err != nil && err != io.EOF && count != 24+4+dataTransferSize+box.Overhead{
+            log.Println(err)
         }
-        
-        //write to flag saying we got the input
-        flag <- 1
-        
-        //wait for auditor
-        auditSuccess:= <- flag
-        
-        if auditSuccess == 0 {
-            log.Println("auditing failed? :(")
-            //return
+    }
+    
+    var decryptNonce [24]byte
+    copy(decryptNonce[:], s2Input[:24])
+    decryptedS2, ok := box.Open(nil, s2Input[24:], &decryptNonce, s2PublicKey, auditorSecretKey)
+    if !ok {
+        log.Println("Decryption not ok!!")
+    }
+    
+    layers[1] = byteToInt(decryptedS2[:4])
+    
+    //serverBInput = make([]byte, dataTransferSize)
+    serverBInput = decryptedS2[4:]
+    
+    
+    //read, unbox, and parse client input
+    clientDataSize := 24+box.Overhead+layers[0]+layers[0]*16
+    clientInput := make([]byte, clientDataSize)
+    for count := 0; count < clientDataSize; {
+        n, err:= conn.Read(clientInput[count:])
+        count += n
+        if err != nil && err != io.EOF && count != clientDataSize{
+            log.Println(err)
         }
+    }
+    
+    copy(decryptNonce[:], clientInput[:24])
+    decryptedClient, ok := box.Open(nil, clientInput[24:],&decryptNonce, clientPublicKey, auditorSecretKey)
+    if !ok {
+        log.Println("Decryption not ok!!")
+    }
+    
+    //userBits = make([]byte, layers[0])
+    userBits = decryptedClient[:layers[0]]
+    
+    //userNonZeros = make([]byte, layers[0]*16)
+    userNonZeros = decryptedClient[layers[0]:]
 
-        //write back to user/server saying auditing succeeded
-        auditPass :=make([]byte,1)
-        auditPass[0] = byte(auditSuccess)
-        n, err := conn.Write(auditPass)
-        if err != nil {
-            log.Println(n, err)
-            return
-        }  
-        
-        
-        if throughput == 0 && UorS == 2 {
-            conn.Close()
-            return
-        }
+    
+    auditResp := 0
+    //run the auditing
+    if layers[0] == layers[1]{
+        auditResp = int(C.auditorVerify(C.int(layers[0]), (*C.uchar)(&userBits[0]), (*C.uchar)(&userNonZeros[0]), (*C.uchar)(&serverAInput[0]), (*C.uchar)(&serverBInput[0])));
+    } else {
+        log.Println("values for layers did not match")
+    }
+
+    if auditResp == 0 {
+        log.Println("auditing failed? :(")
+        //return
+    }
+    
+    //send response
+    auditPass :=make([]byte,1)
+    auditPass[0] = byte(auditResp)
+    n, err := conn.Write(auditPass)
+    if err != nil {
+        log.Println(n, err)
+        return
     }
 }

@@ -22,7 +22,7 @@ import (
 
 var auditor string
 
-func main() {  
+func main() {
     auditor = "127.0.0.1:4444"
 
     log.SetFlags(log.Lshortfile) 

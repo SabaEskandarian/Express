@@ -7,37 +7,33 @@
 
 rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
-uint8_t *userBits;
-uint8_t *nonZeroVectors;
-uint128_t shareA;
-uint128_t shareB;
-EVP_CIPHER_CTX *ctx;
-
-
-//using globals for these is a hack
-//doing it to avoid dealing with cgo pointer passing stuff
-uint8_t *dpfQueryA;
-uint8_t *dpfQueryB;
-int queriesSet;
-uint8_t *outData;
-int outDataSet;
 int dbSize;
 
-int initializeClient(){
+//potential for false sharing here
+//but probably doesn't matter much 
+//since the client speed is not
+//going to bottleneck writes
+EVP_CIPHER_CTX *ctx[MAX_THREADS];
+
+uint8_t *outData;
+int outDataSet;
+
+int initializeClient(int numThreads){
     
-    userBits = (uint8_t*) malloc(MAX_LAYERS);
-    nonZeroVectors = (uint8_t*) malloc(2*MAX_LAYERS*16);
-    
+    //userBits = (uint8_t*) malloc(MAX_LAYERS);
+    //nonZeroVectors = (uint8_t*) malloc(2*MAX_LAYERS*16);
+    for(int i = 0; i < numThreads; i++){
         //set fixed key
-    if(!(ctx = EVP_CIPHER_CTX_new())) 
-        printf("errors occured in creating context\n");
-    unsigned char *aeskey = (unsigned char*) "0123456789123456";
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, aeskey, NULL))
-        printf("errors occured in init\n");
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
+        if(!(ctx[i] = EVP_CIPHER_CTX_new())) 
+            printf("errors occured in creating context\n");
+        unsigned char *aeskey = (unsigned char*) "0123456789123456";
+        if(1 != EVP_EncryptInit_ex(ctx[i], EVP_aes_128_ecb(), NULL, aeskey, NULL))
+            printf("errors occured in init\n");
+        EVP_CIPHER_CTX_set_padding(ctx[i], 0);
+    }
     
-    queriesSet = 0;
-    outDataSet = 0;
+    //queriesSet = 0;
+    //outDataSet = 0;
     dbSize = 0;
     
     return 0;
@@ -75,40 +71,37 @@ void prepNewRow(int dataSize, uint8_t *keyA, uint8_t *keyB){
     dbSize += 1;
 }
 
-void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize){
-    
-    if(queriesSet){
-        free(dpfQueryA);
-        free(dpfQueryB);
-        queriesSet = 0;
-    }
-    
+void addAddr(int index, uint8_t *rowId){
+    pendingRow->index = index;
+    memcpy(&(pendingRow->rowID), rowId, 16);
+}
+
+void prepQuery(int threadNum, int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize, uint8_t **dpfQueryA, uint8_t **dpfQueryB){
+
     if(dataSize > db[localIndex].dataSize) {
         printf("dataSize too big for this entry\n");
     }
     
     *querySize = 1 + 16 + 1 + 18 * 128 + dataSize;
     
-    genDPF(ctx, 128, db[localIndex].rowID, dataSize, dataToWrite, &dpfQueryA, &dpfQueryB);
+    genDPF(ctx[threadNum], 128, db[localIndex].rowID, dataSize, dataToWrite, dpfQueryA, dpfQueryB);
     
-    queriesSet = 1;
 }
 
-void prepAudit(int index, int layers, uint8_t *seed){
+void prepAudit(int threadNum, int index, int layers, uint8_t *seed, uint8_t *userBits, uint8_t *nonZeroVectors, uint8_t *dpfQueryA, uint8_t *dpfQueryB){
+    
+    //userBits and nonZeroVectors need to be malloced before this is called
+    
+    uint128_t shareA;
+    uint128_t shareB;
     
     //eval the dpf query at A and B and put results in shareA, shareB
     uint8_t temp[16];
-    shareA = evalDPF(ctx, dpfQueryA, db[index].rowID, 16, temp);
-    shareB = evalDPF(ctx, dpfQueryB, db[index].rowID, 16, temp);
+    shareA = evalDPF(ctx[threadNum], dpfQueryA, db[index].rowID, 16, temp);
+    shareB = evalDPF(ctx[threadNum], dpfQueryB, db[index].rowID, 16, temp);
     
     //call the auditing function
-    clientVerify(ctx, *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
-}
-
-
-void addAddr(int index, uint8_t *rowId){
-    pendingRow->index = index;
-    memcpy(&(pendingRow->rowID), rowId, 16);
+    clientVerify(ctx[threadNum], *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){
@@ -160,6 +153,6 @@ void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, 
 
 int testing(){
     
-    initializeClient();
+    initializeClient(8);
 
 }

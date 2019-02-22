@@ -12,7 +12,7 @@ typedef struct{
 } rowData;
 
 
-int initializeClient();
+int initializeClient(int numThreads);
 
 //prepare data to add an entry
 void prepNewRow(int dataSize, uint8_t *keyA, uint8_t *keyB);
@@ -24,10 +24,10 @@ void addAddr(int index, uint8_t *rowId);
 void getVirtualAddress(int index, uint8_t *virtualAddress);
 
 //prepare a query
-void prepQuery(int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize);
+void prepQuery(int threadNum, int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize, uint8_t **dpfQueryA, uint8_t **dpfQueryB);
 
 //prepare an audit response for most recent query
-void prepAudit(int index, int layers, uint8_t *seed);
+void prepAudit(int threadNum, int index, int layers, uint8_t *seed, uint8_t *userBits, uint8_t *nonZeroVectors, uint8_t *dpfQueryA, uint8_t *dpfQueryB);
 
 //decrypt and recover a row
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);

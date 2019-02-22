@@ -17,22 +17,57 @@ import (
     "crypto/tls"
     "unsafe"
     "time"
+    "crypto/rand"
+    "golang.org/x/crypto/nacl/box"
+    "strings"
 )
 
 var serverA string
 var serverB string
-var auditor string
 
 func main() {
      
     serverA = "127.0.0.1:4443"
     serverB = "127.0.0.1:4442"
-    auditor = "127.0.0.1:4444"
+    
+    //parameters for tests
+    //remember to start servers in order: auditor, server 1, server, client
+    latencyTest := 1 //set to 0 for throughput test instead
+    numThreads := 8 //how many writes to initiate at once when going for throughput
+    dataLen := 1000
+    dbSize := 10000
+    //dataLen values to try: 100, 1000, 10000, 100000, 1000000
+    //dbSize values to try: 1000, 10000, 100000, 1000000
     
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
     
+    log.SetFlags(log.Lshortfile)
+    
+    C.initializeClient(C.int(numThreads))   
+    
+    //using a deterministic source of randomness for testing
+    //this is just for testing so the different parties share a key
+    //in reality the public keys of the servers/auditors should be known 
+    //ahead of time and those would be used
+    _, clientSecretKey, err := box.GenerateKey(strings.NewReader(strings.Repeat("c",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }    
+    s2PublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("b",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    auditorPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("a",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    
+    //hacky setup phase
     connA, err := tls.Dial("tcp", serverA, conf)
     if err != nil {
         log.Println(err)
@@ -44,19 +79,6 @@ func main() {
         log.Println(err)
         return
     }
-    
-    log.SetFlags(log.Lshortfile)
-    
-    C.initializeClient()
-
-    //parameters for tests
-    //remember to start servers in order: auditor, server 1, server, client
-    latencyTest := 1 //set to 0 for throughput test instead
-    dataLen := 1000
-    dbSize := 10000
-    //dataLen values to try: 100, 1000, 10000, 100000, 1000000
-    //dbSize values to try: 1000, 10000, 100000, 1000000
-    
     //use the connections set up at the beginning to add a bunch of rows really fast
     for i:= 0; i < dbSize; i++ {
         addRow(dataLen, connA, connB) 
@@ -64,6 +86,9 @@ func main() {
             log.Println("added 10000 rows")
         }
     }
+    //close the connections we used for setup
+    connA.Close()
+    connB.Close()
     
     //msg := []byte("this is the message!")
     msg := make([]byte, dataLen)
@@ -71,10 +96,8 @@ func main() {
         msg[i] = 'a'
     }
     
+    //begin tests
     if latencyTest == 1 {
-        //close the connections we used for setup
-        connA.Close()
-        connB.Close()
         
         var totalTimeWrite time.Duration
         var totalTimeRead time.Duration
@@ -82,133 +105,63 @@ func main() {
         for i:=0; i < 10; i++{
             //measured ops here
             startTime := time.Now()
-            
-            //new connections to include them in measurement
-            connA, err = tls.Dial("tcp", serverA, conf)
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            //defer connA.Close()
 
-            connB, err = tls.Dial("tcp", serverB, conf)
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            
-            //defer connB.Close()
-            conn, err := tls.Dial("tcp", auditor, conf) 
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            //defer conn.Close()
-            //send identification to auditor
-            l := 2
-            n, err := conn.Write(intToByte(l))
-            if err != nil {
-                log.Println(n, err)
-                return
-            }
-
-            writeRow(13, msg, conn, connA, connB)
+            writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
 
             elapsedTime := time.Since(startTime)
             log.Printf("write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
             totalTimeWrite += elapsedTime
-            
-            //next do a read
-            //close the connections
-            connA.Close()
-            connB.Close()
-            conn.Close()
 
             //measured ops here
             startTime = time.Now()
             
-            //new connections to include them in measurement
-            connA, err = tls.Dial("tcp", serverA, conf)
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            //defer connA.Close()
-
-            connB, err = tls.Dial("tcp", serverB, conf)
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            //defer connB.Close()
-            
-            readRow(13, connA, connB)
+            readRow(13, serverA, s2PublicKey, clientSecretKey)
 
             elapsedTime = time.Since(startTime)
             log.Printf("read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
             totalTimeRead += elapsedTime
-
-            connA.Close()
-            connB.Close()
         }
         
         log.Printf("average write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeWrite/10)
         log.Printf("average read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeRead/10)
-
-        
         
     } else { //throughput test
-        
-        //connect to auditor
-        conn, err := tls.Dial("tcp", auditor, conf) 
-        if err != nil {
-            log.Println(err)
-            return
+        maxOps := 10000 //number of times each thread will write
+        //runs nonstop 
+        for i := 0; i < numThreads; i++ {
+            go throughputWriter(i, maxOps, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
         }
-        defer conn.Close()
-        //send identification to auditor
-        l := 2
-        n, err := conn.Write(intToByte(l))
-        if err != nil {
-            log.Println(n, err)
-            return
-        }
-        
-        maxOps := 1000000
-        startTime := time.Now()
-        //runs nonstop and gives progress updates every 500 ops
-        for i := 1; i <= maxOps; i++ {
-            writeRow(13, msg, conn, connA, connB)
-            if i % 500 == 0 {
-                elapsedTime := time.Since(startTime)
-                log.Printf("total ops: %d, dbSize %d, dataLen %d, time: %s\n", i, dbSize, dataLen, elapsedTime)
-
-            }
-        }
-        elapsedTime := time.Since(startTime)
-        log.Printf("Final output; total ops: %d, dbSize %d, dataLen %d, time: %s\n", maxOps, dbSize, dataLen, elapsedTime)
+        //measurement for this will be taken care of at the server side
     }
     
     //end measurement
     /*
     //the rest is here to make sure nothing is broken
     //not important for measurement
-    rowVal := readRow(13, connA, connB)
+    rowVal := readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     
-    writeRow(13, msg, conn, connA, connB)
+    writeRow(13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
     log.Println("wrote message")
     
-    rowVal = readRow(11, connA, connB)
+    rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 11 is ")
     log.Println(string(rowVal))      
     
-    rowVal = readRow(13, connA, connB)
+    rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     */
     
+}
+
+func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
+    
+    for i:=0;i<totalRuns;i++ {
+        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+    }
+    return
 }
 
 func byteToInt(myBytes []byte) (x int) {
@@ -224,12 +177,6 @@ func intToByte(myInt int) (retBytes []byte){
     retBytes[0] = byte(myInt & 0xff)
     return
 }
-
-//functions corresponding to the okvClient.h functions 
-//to act as wrappers and do the network communication
-
-//if needed, consider splitting communication with each
-//server into a different goroutine so it can happen in parallel
 
 func addRow(dataSize int, connA, connB *tls.Conn) {
 
@@ -316,27 +263,29 @@ func addRow(dataSize int, connA, connB *tls.Conn) {
     C.addAddr(C.int(byteToInt(newIndex)), (*C.uchar)(&newRowID[0]))
 }
 
-func readRow(localIndex int, connA, connB *tls.Conn) ([]byte){
+func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]byte) ([]byte){
+    
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+    
+    //connect to server A
+    conn, err := tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+    }
     
     //1 byte connection type 2
     connType := make([]byte, 1)
     connType[0] = 2
-    n, err := connA.Write(connType)
-    if err != nil {
-        log.Println(n, err)
-    }
-    n, err = connB.Write(connType)
+    n, err := conn.Write(connType)
     if err != nil {
         log.Println(n, err)
     }
     
     //write index 4 bytes
     sendIndex := intToByte(localIndex)
-    n, err = connA.Write(sendIndex)
-    if err != nil {
-        log.Println(n, err)
-    }
-    n, err = connB.Write(sendIndex)
+    n, err = conn.Write(sendIndex)
     if err != nil {
         log.Println(n, err)
     }
@@ -345,28 +294,15 @@ func readRow(localIndex int, connA, connB *tls.Conn) ([]byte){
     //virtAddr := make([]byte, 16)
     //C.getVirtualAddress(C.int(localIndex), (*C.uchar)(&virtAddr[0]))
     virtAddr := C.GoBytes(unsafe.Pointer(&(C.db[localIndex].rowID)), 16)
-    n, err = connA.Write(virtAddr)
-    if err != nil {
-        log.Println(n, err)
-    }
-    n, err = connB.Write(virtAddr)
+    n, err = conn.Write(virtAddr)
     if err != nil {
         log.Println(n, err)
     }
     
-    //read seed  
+    //read seed and data from server A
     seedA := make([]byte, 16)
-    seedB := make([]byte, 16)
     for count := 0; count < 16; {
-        n, err= connA.Read(seedA[count:])
-        count += n
-        if err != nil && count != 16{
-            log.Println(err)
-            log.Println(n)
-        }
-    }
-    for count := 0; count < 16; {
-        n, err= connB.Read(seedB[count:])
+        n, err= conn.Read(seedA[count:])
         count += n
         if err != nil && count != 16{
             log.Println(err)
@@ -374,32 +310,46 @@ func readRow(localIndex int, connA, connB *tls.Conn) ([]byte){
         }
     }
     
-    //read data 
     size := C.db[localIndex].dataSize
     dataA := make([]byte, size)
-    dataB := make([]byte, size)
     for count := 0; count < int(size); {
-        n, err= connA.Read(dataA[count:])
+        n, err= conn.Read(dataA[count:])
         count += n
         if err != nil && count != int(size){
             log.Println(err)
             log.Println(n)
         }
     }
-    for count := 0; count < int(size); {
-        n, err= connB.Read(dataB[count:])
+    
+    //read, unbox, and parse seed and data from server B
+    boxBSize := 24+box.Overhead+16+int(size)
+    boxB := make([]byte, boxBSize)
+    for count := 0; count < boxBSize; {
+        n, err= conn.Read(boxB[count:])
         count += n
-        if err != nil && count != int(size){
+        if err != nil && count != boxBSize{
             log.Println(err)
             log.Println(n)
         }
     }
+    
+    var decryptNonce [24]byte
+    copy(decryptNonce[:], boxB[:24])
+    decryptedS2, ok := box.Open(nil, boxB[24:], &decryptNonce, s2PublicKey, clientSecretKey)
+    if !ok {
+        log.Println("Decryption not ok!!")
+    }
+    
+    //seedB := make([]byte, 16)
+    seedB := decryptedS2[:16]
+    //dataB := make([]byte, size)
+    dataB := decryptedS2[16:16+size]
     
     //log.Println(dataA)
     //log.Println(dataB)
     //log.Println(seedA)
     //log.Println(seedB)
-    //log.Println()  
+    //log.Println()
     
     //decrypt
     //void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);
@@ -408,39 +358,37 @@ func readRow(localIndex int, connA, connB *tls.Conn) ([]byte){
     return C.GoBytes(unsafe.Pointer(C.outData), size)
 }
 
-func writeRow(localIndex int, data []byte, conn, connA, connB *tls.Conn) {
+//this is the only function that can safely be called in parallel goroutines
+func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
+    
+    conf := &tls.Config{
+         InsecureSkipVerify: true,
+    }
+    
+    //connect to server A
+    conn, err := tls.Dial("tcp", serverA, conf)
+    if err != nil {
+        log.Println(err)
+        return
+    }
     
     dataSize := len(data)
     querySize := make([]byte, 4)
     
     //prep the query
     cIntQuerySize := C.int(byteToInt(querySize))
-    C.prepQuery(C.int(localIndex), (*C.uchar)(&data[0]), C.int(dataSize), &cIntQuerySize)
+    var dpfQueryA *C.uchar
+    var dpfQueryB *C.uchar
     
-    //call helper function goroutines to communicate with each party
+    C.prepQuery(C.int(threadNum), C.int(localIndex), (*C.uchar)(&data[0]), C.int(dataSize), &cIntQuerySize, &dpfQueryA, &dpfQueryB)
+    
     intQuerySize := int(cIntQuerySize)//byteToInt(querySize)
     
-    flag1 := make(chan int)
-    flag2 := make(chan int)
-
-    go writeRowServerA(dataSize, intQuerySize, localIndex, flag1, conn, connA)
-    go writeRowServerB(dataSize, intQuerySize, flag2, connB)
-    
-    //wait for connections to be handled before returning
-    done1 := <- flag1
-    done2 := <- flag2
-    
-    if done1 != 1 || done2 != 1 {
-        log.Println("something strange happened :(")
-    }
-}
-
-func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, conn, connA *tls.Conn) {
-    
+    //write first message to server A
     //1 byte connection type 3
     connType := make([]byte, 1)
     connType[0] = 3
-    n, err := connA.Write(connType)
+    n, err := conn.Write(connType)
     if err != nil {
         log.Println(n, err)
         return
@@ -450,31 +398,54 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, con
     //log.Println(querySize)
     
     //write dataTransferSize
-    n, err = connA.Write(intToByte(querySize))
+    n, err = conn.Write(intToByte(intQuerySize))
     if err != nil {
         log.Println(n, err)
         return
     }
     
     //write dataSize
-    n, err = connA.Write(intToByte(dataSize))
+    n, err = conn.Write(intToByte(dataSize))
     if err != nil {
         log.Println(n, err)
         return
     }
     
     //write the query
-    sendQuery := C.GoBytes(unsafe.Pointer(C.dpfQueryA), C.int(querySize))
-    n, err = connA.Write(sendQuery)
+    sendQuery := C.GoBytes(unsafe.Pointer(dpfQueryA), C.int(intQuerySize))
+    n, err = conn.Write(sendQuery)
     if err != nil {
         log.Println(n, err)
         return
     }
-
-    //read seed and layers from server A
+    
+    
+    //prepare message for server B, box it, and send to server A
+    
+    serverBPlaintext := append(intToByte(dataSize), C.GoBytes(unsafe.Pointer(dpfQueryB), C.int(intQuerySize))...)
+    
+    //box serverBPlaintext
+    
+    var nonce [24]byte
+    //fill nonce with randomness
+    _, err = rand.Read(nonce[:])
+    if err != nil{
+        log.Println("couldn't get randomness for nonce!")
+    }
+    
+    serverBCiphertext := box.Seal(nonce[:], serverBPlaintext, &nonce, s2PublicKey, clientSecretKey)
+    
+    //send boxed value to serverA
+    n, err = conn.Write(serverBCiphertext)
+    if err != nil {
+        log.Println(n, err)
+        return
+    } 
+    
+    //read seed and layers from server A (in preparation for auditing)
     seed := make([]byte, 16)
     for count := 0; count < 16; {
-        n, err= connA.Read(seed[count:])
+        n, err= conn.Read(seed[count:])
         count += n
         if err != nil && count != 16{
             log.Println(err)
@@ -485,7 +456,7 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, con
 
     layers := make([]byte, 4)
     for count := 0; count < 4; {
-        n, err= connA.Read(layers[count:])
+        n, err= conn.Read(layers[count:])
         count += n
         if err != nil && count != 4{
             log.Println(err)
@@ -493,98 +464,36 @@ func writeRowServerA(dataSize, querySize int, localIndex int, flag chan int, con
         }
     }
     
-    //comment this line to temporarily remove auditing
-    writeRowAuditor(localIndex, C.int(byteToInt(layers)), seed, conn)
-    flag <- 1
-    return
-}
-
-func writeRowServerB(dataSize, querySize int, flag chan int, connB *tls.Conn) {
-    
-    //1 byte connection type 3
-    connType := make([]byte, 1)
-    connType[0] = 3
-    n, err := connB.Write(connType)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //write dataTransferSize
-    n, err = connB.Write(intToByte(querySize))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //write dataSize
-    n, err = connB.Write(intToByte(dataSize))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-        
-    //write the query
-    sendQuery := C.GoBytes(unsafe.Pointer(C.dpfQueryB), C.int(querySize))
-    n, err = connB.Write(sendQuery)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    flag <- 1
-    
-    return
-}
-
-func writeRowAuditor(index int, layers C.int, seed []byte, conn *tls.Conn) {
-        
+    //prepare message for auditor, box it, and send to server A
     //prepare the auditor message
-    C.prepAudit(C.int(index), layers, (*C.uchar)(&seed[0]))
     
-    //log.Println(int(layers))  
+    userBits := (*C.uchar)(C.malloc(C.ulong(byteToInt(layers))))
+    nonZeroVectors := (*C.uchar)(C.malloc(C.ulong(16*byteToInt(layers))))
     
-    //send layers to auditor
+    C.prepAudit(C.int(threadNum), C.int(localIndex), C.int(byteToInt(layers)), (*C.uchar)(&seed[0]), userBits, nonZeroVectors, dpfQueryA, dpfQueryB)
     
-    n, err := conn.Write(intToByte(int(layers)))
+    
+    //box message to auditor
+    //var nonce [24]byte already declared above
+    //fill nonce with randomness
+    _, err = rand.Read(nonce[:])
+    if err != nil{
+        log.Println("couldn't get randomness for nonce!")
+    }
+    
+    auditPlaintext := append(C.GoBytes(unsafe.Pointer(userBits), C.int(byteToInt(layers))), C.GoBytes(unsafe.Pointer(nonZeroVectors), C.int(byteToInt(layers)*16))...)
+    
+    auditCiphertext := box.Seal(nonce[:], auditPlaintext, &nonce, auditorPublicKey, clientSecretKey)
+    
+    //send boxed audit message to server A
+    n, err = conn.Write(auditCiphertext)
     if err != nil {
         log.Println(n, err)
         return
     }
     
-    //send userbits to auditor
-    sendBits := C.GoBytes(unsafe.Pointer(C.userBits), layers)
-    n, err = conn.Write(sendBits)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //send nonzero vectors to auditor
-    sendVectors := C.GoBytes(unsafe.Pointer(C.nonZeroVectors), layers*16)
-    n, err = conn.Write(sendVectors)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //log.Println("audit materials sent")
-    //log.Println(sendBits)
-    //log.Println(sendVectors)
-    
-    //read success bit
-    auditResp := make([]byte, 1)
-    count := 0
-    for count < 1 {
-        n, err = conn.Read(auditResp)
-        count += n
-        if err != nil && n != 1 {
-            log.Println(n, err)
-        }
-    }
-    
-    if auditResp[0] != 1 {
-        log.Println("user failed audit")
-    }
-    return
+    C.free(unsafe.Pointer(userBits))
+    C.free(unsafe.Pointer(nonZeroVectors))
+    C.free(unsafe.Pointer(dpfQueryA))
+    C.free(unsafe.Pointer(dpfQueryB))
 }
