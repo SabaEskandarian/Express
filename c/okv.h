@@ -12,13 +12,11 @@ typedef struct{
     uint8_t* data; //the actual data
 } vatRow;
 
-int initializeServer();
+int initializeServer(int numThreads);
 
 int processnewEntry(int dataSize, uint8_t *rowKey);
 
-uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSize);
-
-void processQuery(void);
+void rerandDB();
 
 int getEntrySize(uint8_t *id, int index);
 

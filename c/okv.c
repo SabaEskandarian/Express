@@ -8,33 +8,27 @@
 vatRow db[MAX_DB_SIZE];
 int dbSize;
 int layers;
+
 uint128_t rerandCounter;
-uint128_t *vector;
-uint128_t *outVector;
-uint8_t *pendingQuery;
-uint128_t verificationSeed;
 uint128_t rerandSeed;
-int pqDataSize;
-EVP_CIPHER_CTX *ctx;
 EVP_CIPHER_CTX *rerandCtx;
 EVP_CIPHER_CTX *newRowCtx;
-uint128_t auditCounter;
-EVP_CIPHER_CTX *auditCtx;
 
-uint8_t *tempRowId;
+EVP_CIPHER_CTX *ctx[MAX_THREADS];
 
-int initializeServer(){
+
+int initializeServer(int numThreads){
     
-    vector = (uint128_t*) malloc(MAX_DB_SIZE*16);
-    outVector = (uint128_t*) malloc(2*MAX_LAYERS*16);
+    for(int i = 0; i < numThreads; i++){
+        //set fixed key
+        if(!(ctx[i] = EVP_CIPHER_CTX_new())) 
+            printf("errors occured in creating context\n");
+        unsigned char *aeskey = (unsigned char*) "0123456789123456";
+        if(1 != EVP_EncryptInit_ex(ctx[i], EVP_aes_128_ecb(), NULL, aeskey, NULL))
+            printf("errors occured in init\n");
+        EVP_CIPHER_CTX_set_padding(ctx[i], 0);
+    }
     
-    //set fixed key
-    if(!(ctx = EVP_CIPHER_CTX_new())) 
-        printf("errors occured in creating context\n");
-    unsigned char *aeskey = (unsigned char*) "0123456789123456";
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, aeskey, NULL))
-        printf("errors occured in init\n");
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
     
     if(!(rerandCtx = EVP_CIPHER_CTX_new())) 
         printf("errors occured in creating context\n");
@@ -54,22 +48,11 @@ int initializeServer(){
         printf("errors occured in init\n");
     EVP_CIPHER_CTX_set_padding(newRowCtx, 0);
     
-    if(!(auditCtx = EVP_CIPHER_CTX_new())) 
-        printf("errors occured in creating context\n");
-    //next line just for testing. Servers would generate and share a secret key here in production
-    unsigned char *aeskey4 = (unsigned char*) "4123456789123456";
-    if(1 != EVP_EncryptInit_ex(auditCtx, EVP_aes_128_ecb(), NULL, aeskey4, NULL))
-        printf("errors occured in init\n");
-    EVP_CIPHER_CTX_set_padding(auditCtx, 0);
-    
     memset(&rerandSeed, 0, 16);
-    
-    tempRowId = (uint8_t*) malloc(16);
-    
+        
     dbSize = 0;
     layers = 1;
     rerandCounter = 0;
-    auditCounter = 0;
     return 0;
 }
 
@@ -78,12 +61,13 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     
     int len;
     //generate a new rowId
+    uint128_t tempRowId = 0;
     uint128_t bigCounter = (uint128_t)dbSize;
-    if(1 != EVP_EncryptUpdate(newRowCtx, tempRowId, &len, (uint8_t*)&bigCounter, 16))
+    if(1 != EVP_EncryptUpdate(newRowCtx, (uint8_t*)&tempRowId, &len, (uint8_t*)&bigCounter, 16))
         printf("errors occured in generating row ID\n");
 
     uint128_t realRowId;
-    memcpy(&realRowId, tempRowId, 16);
+    memcpy(&realRowId, (uint8_t*)&tempRowId, 16);
     uint128_t realRowKey;
     memcpy(&realRowKey, rowKey, 16);
     
@@ -142,24 +126,7 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     return dbSize-1;
 }
 
-
-uint128_t registerQuery(unsigned char* dpfKey, int dataSize, int dataTransferSize){
-    //change this to copy the data over instead of setting the pointer so that we're not holding a go pointer after the function returns
-    //pendingQuery = dpfKey;
-    int len;
-    pendingQuery = (uint8_t*) malloc(dataTransferSize);
-    memcpy(pendingQuery, dpfKey, dataTransferSize);
-    pqDataSize = dataSize;
-    //verificationSeed = getRandomBlock();//maybe replace this with something generated from a secret shared between the servers
-    if(1 != EVP_EncryptUpdate(auditCtx, (uint8_t*)&verificationSeed, &len, (uint8_t*)&auditCounter, 16))
-        printf("errors occured in generating seed\n");
-    auditCounter++;
-    
-    return verificationSeed;
-}
-
-//processes query on the server
-void processQuery(void){
+void rerandDB() {
     
     int len2;
     
@@ -167,33 +134,14 @@ void processQuery(void){
     if(1 != EVP_EncryptUpdate(rerandCtx, (uint8_t*)&rerandSeed, &len2, (uint8_t*)&rerandCounter, 16))
         printf("errors occured in getting rerandomization seed\n");
     
-    uint8_t* dataShare = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    memset(dataShare, 0, MAX_DATA_SIZE+16);
-    uint8_t* maskTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    uint8_t* seedTemp = (uint8_t*) malloc(MAX_DATA_SIZE+16);
-    
-    
-    //use the different threads for different queries, not to speed up each query
-    //#pragma omp parallel for
-    //Note: if putting back this pragma, mallocs above need to go inside loop
-    //or be replaced by a big buffer where each thread uses its own part
+    #pragma omp parallel for
     for(int i = 0; i < dbSize; i++){
         
         int len;
-            
-        int ds = db[i].dataSize;
-        if(pqDataSize < ds){
-            ds = pqDataSize;
-        }
         
-        //uint8_t* dataShare = (uint8_t*) malloc(db[i].dataSize+16);
-        //memset(dataShare, 0, db[i].dataSize+16);
-        //uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
-        //uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
-        
-        //run dpf on each input
-        vector[i] = evalDPF(ctx, pendingQuery, db[i].rowID, ds, dataShare);
-        //print_block(vector[i]);
+        //TODO: move these out into a big buffer where each thread can use its own part
+        uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
+        uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
         
         //get rerandomization mask
         for(int j = 0; j < (db[i].dataSize+16)/16; j++){
@@ -205,26 +153,17 @@ void processQuery(void){
         
         //xor data into db and rerandomize db entry
         for(int j = 0; j < db[i].dataSize; j++){
-            if(j < ds) {
-                db[i].data[j] = db[i].data[j] ^ dataShare[j];
-            }
             db[i].data[j] = db[i].data[j] ^ db[i].mask[j] ^ maskTemp[j];
             db[i].mask[j] = maskTemp[j];
             //printf("%x ", dataShare[j]);
         }
         //printf("\n");
         
-        free(dataShare);
         free(maskTemp);
         free(seedTemp);
     }
-    //increment rerandomization counter
+    
     rerandCounter++;
-    
-    //produce verification check for the data
-    serverVerify(ctx, verificationSeed, layers, dbSize, vector, outVector);
-    
-    free(pendingQuery);
 }
 
 int getEntrySize(uint8_t *id, int index){
@@ -238,7 +177,6 @@ int getEntrySize(uint8_t *id, int index){
         return -1;
     }
 }
-
 
 //read an entry
 int readEntry(uint8_t *id, int index, uint8_t *data, uint8_t *seed){
@@ -257,7 +195,7 @@ int readEntry(uint8_t *id, int index, uint8_t *data, uint8_t *seed){
 int okv_main(){
     initializeServer(0);
     
-    //TODO: some testing of the server functionality
+    //some testing of the server functionality
     
     
     return 0;

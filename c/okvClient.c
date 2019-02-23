@@ -9,10 +9,6 @@ rowData db[MAX_DB_SIZE];
 rowData *pendingRow;
 int dbSize;
 
-//potential for false sharing here
-//but probably doesn't matter much 
-//since the client speed is not
-//going to bottleneck writes
 EVP_CIPHER_CTX *ctx[MAX_THREADS];
 
 uint8_t *outData;

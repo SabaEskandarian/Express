@@ -4,8 +4,8 @@ package main
 
 
 /*
-#cgo CFLAGS: -fopenmp -O2
-#cgo LDFLAGS: -lcrypto -lm -fopenmp
+#cgo CFLAGS: -O2
+#cgo LDFLAGS: -lcrypto -lm
 #include "../c/dpf.h"
 #include "../c/okvClient.h"
 #include "../c/dpf.c"
@@ -87,6 +87,18 @@ func main() {
         }
     }
     //close the connections we used for setup
+    connEnd := make([]byte, 1) 
+    connEnd[0] = 1
+    n, err := connA.Write(connEnd)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err = connB.Write(connEnd)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
     connA.Close()
     connB.Close()
     
@@ -196,9 +208,9 @@ func addRow(dataSize int, connA, connB *tls.Conn) {
 
     
     //write the data to each connection
-    //1 byte connection type 1
+    //1 byte connection type 0
     connType := make([]byte, 1) 
-    connType[0] = 1
+    connType[0] = 0
     n, err := connA.Write(connType)
     if err != nil {
         log.Println(n, err)

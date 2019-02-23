@@ -20,10 +20,11 @@ import (
     "unsafe"
 )
 
-var auditor string
 
 func main() {
-    auditor = "127.0.0.1:4444"
+    auditor := "127.0.0.1:4444"
+    serverB := "127.0.0.1:4442"
+    numThreads := 16
 
     log.SetFlags(log.Lshortfile) 
     
@@ -35,19 +36,8 @@ func main() {
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
-    conn2, err := tls.Dial("tcp", auditor, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    defer conn2.Close()
-    n, err := conn2.Write(intToByte(leader))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
     
-    C.initializeServer()
+    C.initializeServer(numThreads)
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
     if err != nil {
@@ -61,13 +51,50 @@ func main() {
         port = ":4443"
     }
     ln, err := tls.Listen("tcp", port, config)  
-
     if err != nil {
         log.Println(err)
         return
     }
     defer ln.Close()
-
+    
+    //using a deterministic source of randomness for testing
+    //this is just for testing so the different parties share a key
+    //in reality the public keys of the servers/auditors should be known 
+    //ahead of time and those would be used
+    clientPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("c",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }    
+    _, s2SecretKey, err := box.GenerateKey(strings.NewReader(strings.Repeat("b",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    auditorPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("a",10000)))
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    
+    //first connection for setting up rows
+    addRows(leader)
+    //no more adding rows after here
+    
+    //create a bunch of channels & workers to handle requests
+    blocker := make(chan int)
+    conns := make(chan net.Conn)
+    for i := 0; i < numThreads; i++ {
+        if leader == 1 {
+            go leaderWorker(i, conns, blocker)
+        } else {
+            go worker(i, conns, blocker)
+        }
+    }
+    
+    //main loop of writes & reads
+    //this implementation needs all writes to be done before a read happens
+    //or there might be inconsistent state between servers
     for {
         conn, err := ln.Accept()
         if err != nil {
@@ -75,7 +102,34 @@ func main() {
             //continue
         }
         conn.SetDeadline(time.Time{})
-        handleConnection(conn, leader, conn2)
+        
+        connType := make([]byte, 1)  
+        n, err:= conn.Read(connType)
+        if err != nil && n != 1 {
+            log.Println(err)
+            log.Println(n)
+        }
+        
+        if connType[0] == 2 { //read
+            
+            for i:= 0; i < numThreads; i++ {
+                //signal workers one at a time by sending them nil connections
+                var nilConn net.Conn
+                conns <- nilConn
+                //wait for workers to come back after xoring into the db
+                <- blocker
+            }
+            
+            //run rerandomization
+            C.rerandDB()
+            
+            //handle the read
+            handleRead(conn, leader)
+            
+        } else if connType[0] == 3 { //write
+            //pass the connection on to a worker
+            conns <- conn
+        }
     }
 }
 
@@ -91,6 +145,96 @@ func intToByte(myInt int) (retBytes []byte){
     retBytes[1] = byte((myInt >> 8) & 0xff)
     retBytes[0] = byte(myInt & 0xff)
     return
+}
+
+func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int) {
+    for conn := range conns {
+        //TODO handle connection
+    }
+}
+
+func worker(id int, conns <-chan net.Conn, blocker chan<- int) {
+    //TODO setup the worker-specific db
+    
+    for conn := range conns {        
+        if conn == nil {//this is a read
+            //TODO xor the worker's DB into the main DB
+            
+            //signal that you're done
+            blocker <- 1
+        } else {//this is a write
+            //TODO handle write
+            
+        }
+    }
+}
+
+func handleRead(conn net.Conn, leader int){
+    //TODO
+}
+
+func addRows(leader int) {
+    conn, err := ln.Accept()
+    if err != nil {
+        log.Println(err)
+        //continue
+    }
+    conn.SetDeadline(time.Time{})
+    for {
+        connEnd := make([]byte, 1)  
+        n, err:= conn.Read(connEnd)
+        if err != nil && n != 1 {
+            log.Println(err)
+            log.Println(n)
+        }
+        
+        if connEnd[0] == 1 {
+            conn.Close()
+            return
+        }
+        
+        dataSize:=make([]byte, 4)
+        rowKey:=make([]byte, 16)
+        
+        count := 0
+        //read dataSize 
+        for count < 4 {
+            n, err= conn.Read(dataSize[count:])
+            count += n
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+            }
+        }
+        
+        count = 0
+        //read rowKey
+        for count < 16 {
+            n, err= conn.Read(rowKey[count:])
+            count += n
+            if err != nil && count != 16{
+                log.Println(err)
+                log.Println(n)
+            }
+        }
+        //call C command to register row
+        newIndex:= C.processnewEntry(C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
+        
+        if leader == 1 {
+            //send the newIndex number back
+            n, err=conn.Write(intToByte(int(newIndex)))
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            //send the rowId back 
+            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))   
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+        }
+    }
 }
 
 func handleConnection(conn net.Conn, leader int, conn2 *tls.Conn) {
@@ -139,26 +283,6 @@ func handleConnection(conn net.Conn, leader int, conn2 *tls.Conn) {
             newIndex:= C.processnewEntry(C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
             //log.Println(rowKey) 
             //log.Println() 
-            
-            
-            if leader == 1 {
-                //send the newIndex number back
-                n, err=conn.Write(intToByte(int(newIndex)))
-                if err != nil {
-                    log.Println(n, err)
-                    return
-                }
-                //send the rowId back 
-                n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))   
-                if err != nil {
-                    log.Println(n, err)
-                    return
-                }
-            }
-
-            
-            //log.Println(dataSize)
-            //log.Println(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))
             
         } else if connType[0] == 2 { //read
             

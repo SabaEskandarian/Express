@@ -66,6 +66,8 @@ uint128_t subModP(uint128_t in1, uint128_t in2){
     return out;
 }
 
+//performance for this is really bad
+//but it gets _much_ better when compiled with -O2
 uint128_t multModP(uint128_t in1, uint128_t in2){
     uint128_t out = 0;
     uint128_t in1high = in1 >> 64;
@@ -438,7 +440,7 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
     //set bits vector to all zeros
     memset(bits, 0, dbLayers);
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
         uint128_t whenToSwap;
         int newIndex;
@@ -485,7 +487,7 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
     int newDbSize = dbSize;
     
     
-    #pragma omp declare reduction(ADDMODP: uint128_t : omp_out += omp_in + (omp_out + omp_in < omp_out || omp_out+omp_in > 0-MODP)*MODP)
+    //#pragma omp declare reduction(ADDMODP: uint128_t : omp_out += omp_in + (omp_out + omp_in < omp_out || omp_out+omp_in > 0-MODP)*MODP)
     
 
     for(int i = 0; i < dbLayers; i++){
@@ -494,9 +496,9 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         rightSum = 0;
         
         //multiply each element by a ``random'' value and add into the appropriate sum
-        #pragma omp parallel for \
-          default(shared) private(prfOutput) \
-          reduction(ADDMODP:rightSum,leftSum)
+        //#pragma omp parallel for \
+        //  default(shared) private(prfOutput) \
+        //  reduction(ADDMODP:rightSum,leftSum)
         for(int j = 0; j < newDbSize; j++){
             PRF(ctx, seed, i, j, &prfOutput);         
             if(j >= (1<<(dbLayers - i - 1))){ //if j is in right half
@@ -517,7 +519,7 @@ void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize,
         //printf("\n");
         
         //add together left and right halves for next iteration
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for(int j = 1<<(dbLayers - i - 1); j < newDbSize; j++){
             vectorsWorkSpace[j - (1<<(dbLayers - i - 1))] =  addModP(vectorsWorkSpace[j - (1<<(dbLayers - i - 1))], vectorsWorkSpace[j]);
         }
@@ -554,7 +556,7 @@ int auditorVerify(int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn, uint8_
     int pass = 1; //set this to 0 if any check fails
     uint128_t zero = 0;
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i = 0; i < dbLayers; i++){
         uint128_t mergeAB[2];
         
@@ -610,8 +612,8 @@ void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint12
     uint128_t *mVectorB = (uint128_t*) malloc(dbSize*16);
     uint128_t prfOutput;
 
-    #pragma omp parallel for \
-    default(shared) private(prfOutput)
+    //#pragma omp parallel for \
+    //default(shared) private(prfOutput)
     for(int i = 0; i < dbSize; i++){
         PRF(ctx, seed, 0, i, &prfOutput);
         mVectorA[i] = va[i] ^ prfOutput;
@@ -630,8 +632,8 @@ void riposteServerVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint12
     PRF(ctx, seed, 1, 0, cValue);
     uint128_t prfOutput;
     
-    #pragma omp parallel for \
-    default(shared) private(prfOutput)
+    //#pragma omp parallel for \
+    //default(shared) private(prfOutput)
     for(int i = 0; i < dbSize; i++){
         PRF(ctx, seed, 0, i, &prfOutput);
         mVector[i] = vector[i] ^ prfOutput;
@@ -651,10 +653,10 @@ int riposteAuditorVerify(uint8_t *digestA, uint8_t *digestB, uint8_t *ma, uint8_
     //check that m vectors differ in only 1 place
     int differenceCount = 0;
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i = 0; i < dbSize; i++) {
         if(memcmp(&ma[i*16], &mb[i*16], 16) != 0){
-            #pragma omp critical
+            //#pragma omp critical
             differenceCount++;
         }
     }
@@ -754,7 +756,7 @@ int dpf_tests(){
     uint128_t* outVectorsB = malloc(sizeof(uint128_t)*2*dbLayers);
     
     //evaluate the db at each point for each server
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i = 0; i < dbSize; i++){
         uint128_t res1, res2;
         res1 = evalDPF(ctx, k0, db[i], dataSize, dataShare0);
