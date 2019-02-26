@@ -18,12 +18,12 @@ import (
     "os"
     "time"
     "unsafe"
+    "crypto/rand"
 )
 
-
 func main() {
-    auditor := "127.0.0.1:4444"
-    serverB := "127.0.0.1:4442"
+    auditor = "127.0.0.1:4444"
+    serverB = "127.0.0.1:4442"
     numThreads := 16
 
     log.SetFlags(log.Lshortfile) 
@@ -85,12 +85,14 @@ func main() {
     blocker := make(chan int)
     conns := make(chan net.Conn)
     for i := 0; i < numThreads; i++ {
-        if leader == 1 {
-            go leaderWorker(i, conns, blocker)
+        if leader == 1{
+            go leaderWorker(i, conns, blocker, serverB, auditor)
         } else {
-            go worker(i, conns, blocker)
+            go worker(i, conns, blocker, auditorPublicKey, s2SecretKey)
         }
     }
+    
+    writeHappened := false
     
     //main loop of writes & reads
     //this implementation needs all writes to be done before a read happens
@@ -112,23 +114,30 @@ func main() {
         
         if connType[0] == 2 { //read
             
-            for i:= 0; i < numThreads; i++ {
-                //signal workers one at a time by sending them nil connections
-                var nilConn net.Conn
-                conns <- nilConn
-                //wait for workers to come back after xoring into the db
-                <- blocker
+            if writeHappened == true {
+                for i:= 0; i < numThreads; i++ {
+                    //signal workers one at a time by sending them nil connections
+                    var nilConn net.Conn
+                    conns <- nilConn
+                    //wait for workers to come back after xoring into the db
+                    <- blocker
+                }
+                
+                //run rerandomization
+                C.rerandDB()   
+                writeHappened = false
             }
-            
-            //run rerandomization
-            C.rerandDB()
-            
             //handle the read
-            handleRead(conn, leader)
+            if leader == 1 {
+                handleRead(conn, serverB)
+            } else {
+                handleRead(conn, clientPublicKey, s2SecretKey)
+            }
             
         } else if connType[0] == 3 { //write
             //pass the connection on to a worker
             conns <- conn
+            writeHappened = true
         }
     }
 }
@@ -147,30 +156,323 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int) {
-    for conn := range conns {
-        //TODO handle connection
+func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, auditor string) {
+    //setup the worker-specific db
+    dbSize :=  int(C.dbSize)
+    db := make([][]byte, dbSize)
+    for i := 0; i < dbSize; i++ {
+        db[i] = make([]byte, int(C.db[i].dataSize))
     }
-}
-
-func worker(id int, conns <-chan net.Conn, blocker chan<- int) {
-    //TODO setup the worker-specific db
+    vector := make([][16]byte, dbSize)
+    outVector := make([][16]byte, 2*int(C.layers))
     
     for conn := range conns {        
         if conn == nil {//this is a read
-            //TODO xor the worker's DB into the main DB
+            //xor the worker's DB into the main DB
+            for i := 0; i < dbSize; i++ {
+                for j := 0; j < len(db[i]); j++ {
+                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
+                    db[i][j] = 0
+                }
+            }
             
             //signal that you're done
             blocker <- 1
         } else {//this is a write
-            //TODO handle write
             
+            //set up connections to server B and auditor
+            conf := &tls.Config{
+                InsecureSkipVerify: true,
+            }
+            
+            //connect to server B
+            connB, err := tls.Dial("tcp", serverB, conf)
+            if err != nil {
+                log.Println(err)
+            }
+            
+            //connect to auditor
+            connAudit, err = tls.Dial("tcp", auditor, conf)
+            if err != nil {
+                log.Println(err)
+            }
+            
+            //tell server B it's a write
+            //1 byte connection type 3
+            connType := make([]byte, 1)
+            connType[0] = 3
+            n, err := conn.Write(connType)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            //TODO some of the below should potentially be reordered
+            
+            //TODO read sizes, query, and boxed query
+                    
+            //TODO forward sizes and boxed query
+                
+            //TODO send seed and layers to client
+            
+            //TODO receive boxed client audit part
+                        
+            //TODO run dpf, xor into local db
+            //TODO run audit part
+            
+            //TODO read server B boxed audit part, read client boxed audit part
+            
+            //TODO send audit parts to auditor, wait for response 
+                
         }
     }
 }
 
-func handleRead(conn net.Conn, leader int){
-    //TODO
+
+func worker(id int, conns <-chan net.Conn, blocker chan<- int, auditorPublicKey, s2SecretKey *[32]byte) {
+    //setup the worker-specific db
+    dbSize :=  int(C.dbSize)
+    db := make([][]byte, dbSize)
+    for i := 0; i < dbSize; i++ {
+        db[i] = make([]byte, int(C.db[i].dataSize))
+    }
+    vector := make([][16]byte, dbSize)
+    outVector := make([][16]byte, 2*int(C.layers))
+    
+    for conn := range conns {        
+        if conn == nil {//this is a read
+            //xor the worker's DB into the main DB
+            for i := 0; i < dbSize; i++ {
+                for j := 0; j < len(db[i]); j++ {
+                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
+                    db[i][j] = 0
+                }
+            }
+            
+            //signal that you're done
+            blocker <- 1
+        } else {//this is a write
+            
+            //read sizes and boxed query
+            in1 := make([]byte, 4)
+            in2 := make([]byte, 4)
+            
+            count := 0
+            //read dataTransferSize
+            for count < 4 {
+                n, err:= conn.Read(in1[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                }
+            }
+            count = 0
+            //read dataSize
+            for count < 4 {
+                n, err:= conn.Read(in2[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                }
+            }
+            
+            dataTransferSize := byteToInt(in1)
+            dataSize := byteToInt(in2)
+            
+            clientInput := make([]byte, 24+dataTransferSize+box.Overhead)
+            for count := 0; count < 24+dataTransferSize+box.Overhead; {
+                n, err:= conn.Read(clientInput[count:])
+                count += n
+                if err != nil && err != io.EOF && count != 24+dataTransferSize+box.Overhead{
+                    log.Println(err)
+                }
+            }
+            
+            //unbox query
+            var decryptNonce [24]byte
+            copy(decryptNonce[:], clientInput[:24])
+            decryptedQuery, ok := box.Open(nil, clientInput[24:], &decryptNonce, clientPublicKey, s2SecretKey)
+            if !ok {
+                log.Println("Decryption not ok!!")
+            }
+            
+            //TODO run dpf, xor into local db
+            
+            for i:= 0; i < dbSize; i++ {
+                
+            }
+            
+            //TODO run audit part
+            
+            //TODO send boxed audit to leader
+                            
+        }
+    }
+}
+
+func handleLeaderRead(conn net.Conn, serverB string){
+    index:= make([]byte, 4)
+    rowId:= make([]byte, 16)
+    
+    //read index and rowId
+    count = 0
+    //read index
+    for count < 4 {
+        n, err= conn.Read(index[count:])
+        count += n
+        if err != nil && count != 4{
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    count = 0
+    //read virtual address
+    for count < 16 {
+        n, err= conn.Read(rowId[count:])
+        count += n
+        if err != nil && count != 16{  
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    //send request to server B
+    conf := &tls.Config{
+        InsecureSkipVerify: true,
+    }
+    
+    //connect to server B
+    connB, err := tls.Dial("tcp", serverB, conf)
+    if err != nil {
+        log.Println(err)
+    }
+    
+    //write index and rowId to server B
+    //1 byte connection type 2
+    connType := make([]byte, 1)
+    connType[0] = 2
+    n, err := connB.Write(connType)
+    if err != nil {
+        log.Println(n, err)
+    }
+    
+    //write index 4 bytes
+    n, err = connB.Write(index)
+    if err != nil {
+        log.Println(n, err)
+    }
+    
+    n, err = connB.Write(rowId)
+    if err != nil {
+        log.Println(n, err)
+    }
+    
+    //get data size
+    size := int(C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index))))
+    
+    //make space for responses
+    data := make([]byte, size)
+    seed := make([]byte, 16)
+
+    //get data
+    C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+    
+    
+    //write back seed and data
+    //read response from server B
+    boxBSize := 24+box.Overhead+16+size
+    boxB := make([]byte, boxBSize)
+    for count := 0; count < boxBSize; {
+        n, err= conn.Read(boxB[count:])
+        count += n
+        if err != nil && count != boxBSize{
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    //write server A response
+    n, err=conn.Write(seed)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    n, err=conn.Write(data)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+    //write server B response
+    n, err=conn.Write(boxB)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
+    
+}
+
+
+func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
+    index:= make([]byte, 4)
+    rowId:= make([]byte, 16)
+    
+    //read index and rowId
+    count = 0
+    //read index
+    for count < 4 {
+        n, err= conn.Read(index[count:])
+        count += n
+        if err != nil && count != 4{
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    count = 0
+    //read virtual address
+    for count < 16 {
+        n, err= conn.Read(rowId[count:])
+        count += n
+        if err != nil && count != 16{  
+            log.Println(err)
+            log.Println(n)
+        }
+    }
+    
+    //get data size
+    size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
+    
+    //make space for responses
+    data := make([]byte, size)
+    seed := make([]byte, 16)
+
+    //get data
+    C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+    
+    
+    //write back seed and data
+    //box response, send to server A
+
+    readPlaintext := append(seed, data)
+    var nonce [24]byte
+    
+    //fill nonce with randomness
+    _, err = rand.Read(nonce[:])
+    if err != nil{
+        log.Println("couldn't get randomness for nonce!")
+    }
+    
+    readCiphertext := box.Seal(nonce[:], readPlaintext, &nonce, clientPublicKey, s2SecretKey)
+    
+    //send boxed message to server A
+    n, err = conn.Write(readCiphertext)
+    if err != nil {
+        log.Println(n, err)
+        return
+    }
 }
 
 func addRows(leader int) {
@@ -237,118 +539,7 @@ func addRows(leader int) {
     }
 }
 
-func handleConnection(conn net.Conn, leader int, conn2 *tls.Conn) {
-    defer conn.Close()
-    for{
-        //determine what kind of connection this is
-        connType := make([]byte, 1)  
-        n, err:= conn.Read(connType)
-        if err != nil && n != 1 {
-            log.Println(err)
-            log.Println(n)
-        }
-         
-        //log.Println("handling a connection of type ")
-        //log.Println(connType[0])
-        
-        count := 0
-
-        if connType[0] == 1 { //register row
-
-            dataSize:=make([]byte, 4)
-            rowKey:=make([]byte, 16)
-            
-            count = 0
-            //read dataSize 
-            for count < 4 {
-                n, err= conn.Read(dataSize[count:])
-                count += n
-                if err != nil && count != 4{
-                    log.Println(err)
-                    log.Println(n)
-                }
-            }
-            
-            count = 0
-            //read rowKey
-            for count < 16 {
-                n, err= conn.Read(rowKey[count:])
-                count += n
-                if err != nil && count != 16{
-                    log.Println(err)
-                    log.Println(n)
-                }
-            }
-            //call C command to register row
-            newIndex:= C.processnewEntry(C.int(byteToInt(dataSize)), (*C.uchar)(&rowKey[0]))
-            //log.Println(rowKey) 
-            //log.Println() 
-            
-        } else if connType[0] == 2 { //read
-            
-            index:= make([]byte, 4)
-            rowId:= make([]byte, 16)
-            
-            count = 0
-            //read index
-            for count < 4 {
-                n, err= conn.Read(index[count:])
-                count += n
-                if err != nil && count != 4{
-                    log.Println(err)
-                    log.Println(n)
-                }
-            }
-            
-            count = 0
-            //read virtual address
-            for count < 16 {
-                n, err= conn.Read(rowId[count:])
-                count += n
-                if err != nil && count != 16{  
-                    log.Println(err)
-                    log.Println(n)
-                }
-            }
-            
-            //get data size
-            size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
-            //log.Println(index)
-            //log.Println(rowId)
-            //log.Println(size) 
-            
-            //make space for responses
-            data := make([]byte, size)
-            seed := make([]byte, 16)
-            
-            //get data
-            C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
-            //log.Println(data)
-            //log.Println(seed) 
-            
-            //write seed
-            n, err=conn.Write(seed)
-            if err != nil {
-                log.Println(n, err)
-                return
-            }
-            
-            //write data
-            n, err:=conn.Write(data)
-            if err != nil {
-                log.Println(n, err)
-                return
-            }
-            
-        } else if connType[0] == 3 { //write
-            handleWrite(conn, leader, conn2)
-        } else {
-            log.Println("invalid connection type")
-            return
-        }
-    }
-}
-
+//TODO delete this after finishing code for workers
 func handleWrite(conn net.Conn, leader int, conn2 *tls.Conn) {
     dataTransferSize:= 0 //how big the query from the user is
     dataSize := 0 //how big the data in a row is

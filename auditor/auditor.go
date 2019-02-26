@@ -118,7 +118,7 @@ func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2Public
     
     //read, unbox, and parse server 2 input
     s2Input := make([]byte, 24+4+dataTransferSize+box.Overhead)
-    for count := 0; count < dataTransferSize; {
+    for count := 0; count < 24+4+dataTransferSize+box.Overhead; {
         n, err:= conn.Read(s2Input[count:])
         count += n
         if err != nil && err != io.EOF && count != 24+4+dataTransferSize+box.Overhead{
