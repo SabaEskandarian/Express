@@ -16,7 +16,7 @@ import (
     "log"
     "crypto/tls"
     "unsafe"
-    "time"
+    //"time"
     "crypto/rand"
     "golang.org/x/crypto/nacl/box"
     "strings"
@@ -32,10 +32,10 @@ func main() {
     
     //parameters for tests
     //remember to start servers in order: auditor, server 1, server, client
-    latencyTest := 1 //set to 0 for throughput test instead
+    //latencyTest := 1 //set to 0 for throughput test instead
     numThreads := 8 //how many writes to initiate at once when going for throughput
     dataLen := 1000
-    dbSize := 10000
+    dbSize := 1000
     //dataLen values to try: 100, 1000, 10000, 100000, 1000000
     //dbSize values to try: 1000, 10000, 100000, 1000000
     
@@ -107,7 +107,7 @@ func main() {
     for i := 0; i < dataLen; i++ {
         msg[i] = 'a'
     }
-    
+    /*
     //begin tests
     if latencyTest == 1 {
         
@@ -145,16 +145,19 @@ func main() {
         }
         //measurement for this will be taken care of at the server side
     }
+    */
     
     //end measurement
-    /*
+    
+    //log.Println("made it here")
+    
     //the rest is here to make sure nothing is broken
     //not important for measurement
     rowVal := readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     
-    writeRow(13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+    writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
     log.Println("wrote message")
     
     rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
@@ -164,7 +167,7 @@ func main() {
     rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
-    */
+    
     
 }
 

@@ -65,11 +65,13 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     int len;
     //generate a new rowId
     uint128_t bigCounter = (uint128_t)dbSize;
-    if(1 != EVP_EncryptUpdate(newRowCtx, (uint8_t*)&tempRowId, &len, (uint8_t*)&bigCounter, 16))
+    if(1 != EVP_EncryptUpdate(newRowCtx, (uint8_t*)tempRowId, &len, (uint8_t*)&bigCounter, 16))
         printf("errors occured in generating row ID\n");
+    
+    //print_block(tempRowId);
 
     uint128_t realRowId;
-    memcpy(&realRowId, (uint8_t*)&tempRowId, 16);
+    memcpy(&realRowId, (uint8_t*)tempRowId, 16);
     uint128_t realRowKey;
     memcpy(&realRowKey, rowKey, 16);
     

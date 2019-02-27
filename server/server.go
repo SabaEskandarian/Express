@@ -43,7 +43,6 @@ func main() {
         log.Println(err)
         return
     }
-    
     config := &tls.Config{Certificates: []tls.Certificate{cer}}
     port := ":4442"
     if leader == 1 { //if there is a second parameter
@@ -120,6 +119,7 @@ func main() {
         if connType[0] == 2 { //read
             
             if writeHappened == true {
+                //log.Println("write happened")
                 for i:= 0; i < numThreads; i++ {
                     //signal workers one at a time by sending them nil connections
                     var nilConn net.Conn
@@ -132,6 +132,8 @@ func main() {
                 C.rerandDB()   
                 writeHappened = false
             }
+            //log.Println("time to handle the read")
+            
             //handle the read
             if leader == 1 {
                 handleLeaderRead(conn, serverB)
@@ -679,6 +681,7 @@ func addRows(leader int, conn net.Conn) {
         if connEnd[0] == 1 {
             conn.Close()
             done = 1
+            break
         }
         
         dataSize:=make([]byte, 4)
@@ -716,7 +719,7 @@ func addRows(leader int, conn net.Conn) {
                 return
             }
             //send the rowId back 
-            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))   
+            n, err=conn.Write(C.GoBytes(unsafe.Pointer(C.tempRowId), 16))
             if err != nil {
                 log.Println(n, err)
                 return
