@@ -128,6 +128,10 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     return dbSize-1;
 }
 
+void xorIn(int i, int j, uint8_t data){
+    db[i].data[j] = db[i].data[j] ^ data;
+}
+
 void rerandDB() {
     
     int len2;

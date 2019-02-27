@@ -16,6 +16,8 @@ int initializeServer(int numThreads);
 
 int processnewEntry(int dataSize, uint8_t *rowKey);
 
+void xorIn(int i, int j, uint8_t data);
+
 void rerandDB();
 
 int getEntrySize(uint8_t *id, int index);

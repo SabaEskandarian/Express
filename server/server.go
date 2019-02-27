@@ -36,10 +36,6 @@ func main() {
         leader = 1
     }
     
-    conf := &tls.Config{
-         InsecureSkipVerify: true,
-    }
-    
     C.initializeServer(C.int(numThreads))
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
@@ -180,7 +176,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             //xor the worker's DB into the main DB
             for i := 0; i < dbSize; i++ {
                 for j := 0; j < len(db[i]); j++ {
-                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
+                    C.xorIn(C.int(i), C.int(j), C.uchar(db[i][j]))
                     db[i][j] = 0
                 }
             }
@@ -242,7 +238,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             }
             
             dataTransferSize := byteToInt(in1)
-            dataSize := byteToInt(in2)
+            //dataSize := byteToInt(in2)
             
             //get the input
             count= 0
@@ -408,7 +404,7 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
             //xor the worker's DB into the main DB
             for i := 0; i < dbSize; i++ {
                 for j := 0; j < len(db[i]); j++ {
-                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
+                    C.xorIn(C.int(i), C.int(j), C.uchar(db[i][j]))
                     db[i][j] = 0
                 }
             }
@@ -455,7 +451,7 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
             }
             
             dataTransferSize := byteToInt(in1)
-            dataSize := byteToInt(in2)
+            //dataSize := byteToInt(in2)
             
             clientInput := make([]byte, 24+dataTransferSize+box.Overhead)
             for count := 0; count < 24+dataTransferSize+box.Overhead; {
