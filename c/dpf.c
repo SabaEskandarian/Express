@@ -473,12 +473,18 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
 }
 
 //server check inputs
-void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors){
+void serverVerify(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbLayers, int dbSize, uint8_t* vectorsIn, uint8_t* outVectorsIn){
     //outVectors should be of length 2*dbLayers since there are 2 sums per layer
     //printf("serverVerify\n");
     //don't modify vectors -- it should be treated as read-only, so make a copy
     //uint128_t* vectorsWorkSpace = malloc(dbSize*sizeof(uint128_t));
     //memcpy(vectorsWorkSpace, vectors, dbSize*sizeof(uint128_t));
+    
+    uint128_t *vectors = (uint128_t*) vectorsIn;
+    uint128_t *outVectors = (uint128_t*) outVectorsIn;
+    uint128_t seed;
+    memcpy(&seed, seedIn, 16);
+
     
     uint128_t* vectorsWorkSpace = vectors;
     
@@ -773,8 +779,8 @@ int dpf_tests(){
     //run the dpf verification functions
     clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, (uint8_t*)nonZeroVectors);
 
-    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsACopy, outVectorsA);
-    serverVerify(ctx, *seed, dbLayers, dbSize, vectorsBCopy, outVectorsB);
+    serverVerify(ctx, (uint8_t*)seed, dbLayers, dbSize, (uint8_t*)vectorsACopy, (uint8_t*)outVectorsA);
+    serverVerify(ctx, (uint8_t*)seed, dbLayers, dbSize, (uint8_t*)vectorsBCopy, (uint8_t*)outVectorsB);
 
     int pass = -1;
     
@@ -854,10 +860,10 @@ int dpf_tests(){
         printf("client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
         
         begin = clock();
-        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsACopy, outVectorsA);
+        serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsACopy, (uint8_t*)outVectorsA);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
         printf("server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
-        serverVerify(ctx, *seed, dbLayer[i], dbSizes[i], vectorsBCopy, outVectorsB);
+        serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsBCopy, (uint8_t*)outVectorsB);
 
         pass = 0;
         begin = clock();

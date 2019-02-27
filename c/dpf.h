@@ -52,7 +52,7 @@ void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aSha
 void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *va, uint128_t *vb, uint8_t **digestA, uint8_t **digestB);
 
 //server check inputs
-void serverVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbLayers, int dbSize, uint128_t* vectors, uint128_t* outVectors);
+void serverVerify(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbLayers, int dbSize, uint8_t* vectorsIn, uint8_t* outVectorsIn);
 void riposteServerVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *vector, uint128_t *mVector, uint128_t *cValue);
 
 //auditor functionality

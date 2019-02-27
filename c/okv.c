@@ -16,6 +16,7 @@ EVP_CIPHER_CTX *newRowCtx;
 
 EVP_CIPHER_CTX *ctx[MAX_THREADS];
 
+uint8_t *tempRowId;
 
 int initializeServer(int numThreads){
     
@@ -49,6 +50,8 @@ int initializeServer(int numThreads){
     EVP_CIPHER_CTX_set_padding(newRowCtx, 0);
     
     memset(&rerandSeed, 0, 16);
+    
+    tempRowId = (uint8_t*) malloc(16);
         
     dbSize = 0;
     layers = 1;
@@ -61,7 +64,6 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     
     int len;
     //generate a new rowId
-    uint128_t tempRowId = 0;
     uint128_t bigCounter = (uint128_t)dbSize;
     if(1 != EVP_EncryptUpdate(newRowCtx, (uint8_t*)&tempRowId, &len, (uint8_t*)&bigCounter, 16))
         printf("errors occured in generating row ID\n");
@@ -139,7 +141,9 @@ void rerandDB() {
         
         int len;
         
-        //TODO: move these out into a big buffer where each thread can use its own part
+        //TODO: move these out into a big buffer where each thread can use its own part?
+        //allocating that buffer might take longer than it's worth
+        //see what performance we get as-is and change if needed
         uint8_t* maskTemp = (uint8_t*) malloc(db[i].dataSize+16);
         uint8_t* seedTemp = (uint8_t*) malloc(db[i].dataSize+16);
         

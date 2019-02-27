@@ -18,12 +18,15 @@ import (
     "os"
     "time"
     "unsafe"
+    "io"
     "crypto/rand"
+    "golang.org/x/crypto/nacl/box"
+    "strings"
 )
 
 func main() {
-    auditor = "127.0.0.1:4444"
-    serverB = "127.0.0.1:4442"
+    auditor := "127.0.0.1:4444"
+    serverB := "127.0.0.1:4442"
     numThreads := 16
 
     log.SetFlags(log.Lshortfile) 
@@ -37,7 +40,7 @@ func main() {
          InsecureSkipVerify: true,
     }
     
-    C.initializeServer(numThreads)
+    C.initializeServer(C.int(numThreads))
 
     cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
     if err != nil {
@@ -78,7 +81,13 @@ func main() {
     }
     
     //first connection for setting up rows
-    addRows(leader)
+    conn, err := ln.Accept()
+    if err != nil {
+        log.Println(err)
+        //continue
+    }
+    conn.SetDeadline(time.Time{})
+    addRows(leader, conn)
     //no more adding rows after here
     
     //create a bunch of channels & workers to handle requests
@@ -88,7 +97,7 @@ func main() {
         if leader == 1{
             go leaderWorker(i, conns, blocker, serverB, auditor)
         } else {
-            go worker(i, conns, blocker, auditorPublicKey, s2SecretKey)
+            go worker(i, conns, blocker, clientPublicKey, auditorPublicKey, s2SecretKey)
         }
     }
     
@@ -129,7 +138,7 @@ func main() {
             }
             //handle the read
             if leader == 1 {
-                handleRead(conn, serverB)
+                handleLeaderRead(conn, serverB)
             } else {
                 handleRead(conn, clientPublicKey, s2SecretKey)
             }
@@ -163,8 +172,8 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
     for i := 0; i < dbSize; i++ {
         db[i] = make([]byte, int(C.db[i].dataSize))
     }
-    vector := make([][16]byte, dbSize)
-    outVector := make([][16]byte, 2*int(C.layers))
+    vector := make([]byte, dbSize*16)
+    outVector := make([]byte, 2*int(C.layers)*16)
     
     for conn := range conns {        
         if conn == nil {//this is a read
@@ -192,7 +201,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             }
             
             //connect to auditor
-            connAudit, err = tls.Dial("tcp", auditor, conf)
+            connAudit, err := tls.Dial("tcp", auditor, conf)
             if err != nil {
                 log.Println(err)
             }
@@ -206,53 +215,8 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
                 log.Println(n, err)
                 return
             }
-            //TODO some of the below should potentially be reordered
-            
-            //TODO read sizes, query, and boxed query
-                    
-            //TODO forward sizes and boxed query
-                
-            //TODO send seed and layers to client
-            
-            //TODO receive boxed client audit part
                         
-            //TODO run dpf, xor into local db
-            //TODO run audit part
-            
-            //TODO read server B boxed audit part, read client boxed audit part
-            
-            //TODO send audit parts to auditor, wait for response 
-                
-        }
-    }
-}
-
-
-func worker(id int, conns <-chan net.Conn, blocker chan<- int, auditorPublicKey, s2SecretKey *[32]byte) {
-    //setup the worker-specific db
-    dbSize :=  int(C.dbSize)
-    db := make([][]byte, dbSize)
-    for i := 0; i < dbSize; i++ {
-        db[i] = make([]byte, int(C.db[i].dataSize))
-    }
-    vector := make([][16]byte, dbSize)
-    outVector := make([][16]byte, 2*int(C.layers))
-    
-    for conn := range conns {        
-        if conn == nil {//this is a read
-            //xor the worker's DB into the main DB
-            for i := 0; i < dbSize; i++ {
-                for j := 0; j < len(db[i]); j++ {
-                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
-                    db[i][j] = 0
-                }
-            }
-            
-            //signal that you're done
-            blocker <- 1
-        } else {//this is a write
-            
-            //read sizes and boxed query
+            //read sizes, query, and boxed query
             in1 := make([]byte, 4)
             in2 := make([]byte, 4)
             
@@ -280,6 +244,219 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, auditorPublicKey,
             dataTransferSize := byteToInt(in1)
             dataSize := byteToInt(in2)
             
+            //get the input
+            count= 0
+            input := make([]byte, dataTransferSize)
+            for count < dataTransferSize {
+                n, err:= conn.Read(input[count:])
+                count += n
+                if err != nil && count != dataTransferSize {
+                    log.Println(err)
+                }
+            } 
+            
+            clientInput := make([]byte, 24+dataTransferSize+box.Overhead)
+            for count := 0; count < 24+dataTransferSize+box.Overhead; {
+                n, err:= conn.Read(clientInput[count:])
+                count += n
+                if err != nil && err != io.EOF && count != 24+dataTransferSize+box.Overhead{
+                    log.Println(err)
+                }
+            }
+            
+            
+            //generate seed
+            var seed [16]byte
+            _, err = rand.Read(seed[:])
+            if err != nil{
+                log.Println("couldn't get randomness for seed!")
+            }
+                    
+            //forward sizes, seed, and boxed query to server B
+            n, err=connB.Write(in1)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            n, err=connB.Write(in2)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            n, err=connB.Write(seed[:])
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            n, err=connB.Write(clientInput)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+                
+            //send seed and layers to client
+            n, err=conn.Write(seed[:])
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            //also send number of layers
+            n, err=conn.Write(intToByte(int(C.layers)))
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            
+            //receive boxed client audit part
+            clientDataSize := 24+box.Overhead+int(C.layers)+int(C.layers)*16
+            clientAuditInput := make([]byte, clientDataSize)
+            for count := 0; count < clientDataSize; {
+                n, err:= conn.Read(clientAuditInput[count:])
+                count += n
+                if err != nil && err != io.EOF && count != clientDataSize{
+                    log.Println(err)
+                }
+            }
+                        
+            //run dpf, xor into local db
+            for i:= 0; i < dbSize; i++ {
+                ds := int(C.db[i].dataSize)
+                dataShare := make([]byte, ds)
+                v := C.evalDPF(C.ctx[id], (*C.uchar)(&input[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                for j := 0; j < ds; j++ {
+                    db[i][j] = db[i][j] ^ dataShare[j]
+                }
+            }
+            
+            //run audit part
+            C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
+            
+            //read server B boxed audit part
+            s2Input := make([]byte, 24+4+(int(C.layers)*2*16)+box.Overhead)
+            for count := 0; count < 24+4+(int(C.layers)*2*16)+box.Overhead; {
+                n, err:= conn.Read(s2Input[count:])
+                count += n
+                if err != nil && err != io.EOF && count != 24+4+(int(C.layers)*2*16)+box.Overhead{
+                    log.Println(err)
+                }
+            }
+            
+            //send audit parts to auditor
+            n, err = connAudit.Write(intToByte(int(C.layers)))
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+
+            n, err = connAudit.Write(outVector)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            n, err=conn.Write(s2Input)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            n, err=conn.Write(clientAuditInput)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
+            
+            //read auditor response and give an error if it doesn't accept
+            auditResp := make([]byte, 1)
+            count = 0
+            for count < 1 {
+                n, err = connAudit.Read(auditResp)
+                count += n
+                if err != nil && n != 1 {
+                    log.Println(n, err)
+                }
+            }
+            
+            if auditResp[0] != 1 {
+                log.Println("Audit Failed.")
+            }
+            
+            connB.Close()
+            connAudit.Close()
+        }
+    }
+}
+
+
+func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, auditorPublicKey, s2SecretKey *[32]byte) {
+    //setup the worker-specific db
+    dbSize :=  int(C.dbSize)
+    db := make([][]byte, dbSize)
+    for i := 0; i < dbSize; i++ {
+        db[i] = make([]byte, int(C.db[i].dataSize))
+    }
+    vector := make([]byte, dbSize*16)
+    outVector := make([]byte, 2*int(C.layers)*16)
+    
+    for conn := range conns {        
+        if conn == nil {//this is a read
+            //xor the worker's DB into the main DB
+            for i := 0; i < dbSize; i++ {
+                for j := 0; j < len(db[i]); j++ {
+                    C.db[i].data[j] = C.db[i].data[j] ^ db[i][j]
+                    db[i][j] = 0
+                }
+            }
+            
+            //signal that you're done
+            blocker <- 1
+        } else {//this is a write
+            
+            //read sizes and boxed query
+            in1 := make([]byte, 4)
+            in2 := make([]byte, 4)
+            seed := make([]byte, 16)
+            
+            count := 0
+            //read dataTransferSize
+            for count < 4 {
+                n, err:= conn.Read(in1[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                }
+            }
+            count = 0
+            //read dataSize
+            for count < 4 {
+                n, err:= conn.Read(in2[count:])
+                count += n
+                if err != nil && count != 4{
+                    log.Println(err)
+                    log.Println(n)
+                }
+            }
+            
+            //read seed
+            count = 0
+            for count < 16 {
+                n, err:= conn.Read(seed[count:])
+                count += n
+                if err != nil && count != 16{
+                    log.Println(err)
+                    log.Println(n)
+                }
+            }
+            
+            dataTransferSize := byteToInt(in1)
+            dataSize := byteToInt(in2)
+            
             clientInput := make([]byte, 24+dataTransferSize+box.Overhead)
             for count := 0; count < 24+dataTransferSize+box.Overhead; {
                 n, err:= conn.Read(clientInput[count:])
@@ -296,17 +473,34 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, auditorPublicKey,
             if !ok {
                 log.Println("Decryption not ok!!")
             }
-            
-            //TODO run dpf, xor into local db
-            
+                        
+            //run dpf, xor into local db
             for i:= 0; i < dbSize; i++ {
-                
+                ds := int(C.db[i].dataSize)
+                dataShare := make([]byte, ds)
+                v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                for j := 0; j < ds; j++ {
+                    db[i][j] = db[i][j] ^ dataShare[j]
+                }
             }
             
-            //TODO run audit part
+            //run audit part
+            C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
             
-            //TODO send boxed audit to leader
-                            
+            //send boxed audit to leader
+            var nonce [24]byte
+            _, err := rand.Read(nonce[:])
+            if err != nil{
+                log.Println("couldn't get randomness for nonce!")
+            }
+            auditPlaintext := append(intToByte(int(C.layers)), outVector...)
+            auditCiphertext := box.Seal(nonce[:], auditPlaintext, &nonce, auditorPublicKey, s2SecretKey)
+            n, err := conn.Write(auditCiphertext)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
         }
     }
 }
@@ -316,10 +510,10 @@ func handleLeaderRead(conn net.Conn, serverB string){
     rowId:= make([]byte, 16)
     
     //read index and rowId
-    count = 0
+    count := 0
     //read index
     for count < 4 {
-        n, err= conn.Read(index[count:])
+        n, err:= conn.Read(index[count:])
         count += n
         if err != nil && count != 4{
             log.Println(err)
@@ -330,7 +524,7 @@ func handleLeaderRead(conn net.Conn, serverB string){
     count = 0
     //read virtual address
     for count < 16 {
-        n, err= conn.Read(rowId[count:])
+        n, err:= conn.Read(rowId[count:])
         count += n
         if err != nil && count != 16{  
             log.Println(err)
@@ -420,10 +614,10 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     rowId:= make([]byte, 16)
     
     //read index and rowId
-    count = 0
+    count := 0
     //read index
     for count < 4 {
-        n, err= conn.Read(index[count:])
+        n, err:= conn.Read(index[count:])
         count += n
         if err != nil && count != 4{
             log.Println(err)
@@ -434,7 +628,7 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     count = 0
     //read virtual address
     for count < 16 {
-        n, err= conn.Read(rowId[count:])
+        n, err:= conn.Read(rowId[count:])
         count += n
         if err != nil && count != 16{  
             log.Println(err)
@@ -456,11 +650,11 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     //write back seed and data
     //box response, send to server A
 
-    readPlaintext := append(seed, data)
+    readPlaintext := append(seed, data...)
     var nonce [24]byte
     
     //fill nonce with randomness
-    _, err = rand.Read(nonce[:])
+    _, err := rand.Read(nonce[:])
     if err != nil{
         log.Println("couldn't get randomness for nonce!")
     }
@@ -468,21 +662,17 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     readCiphertext := box.Seal(nonce[:], readPlaintext, &nonce, clientPublicKey, s2SecretKey)
     
     //send boxed message to server A
-    n, err = conn.Write(readCiphertext)
+    n, err := conn.Write(readCiphertext)
     if err != nil {
         log.Println(n, err)
         return
     }
 }
 
-func addRows(leader int) {
-    conn, err := ln.Accept()
-    if err != nil {
-        log.Println(err)
-        //continue
-    }
-    conn.SetDeadline(time.Time{})
-    for {
+func addRows(leader int, conn net.Conn) {
+    done := 0
+    
+    for done == 0{
         connEnd := make([]byte, 1)  
         n, err:= conn.Read(connEnd)
         if err != nil && n != 1 {
@@ -492,7 +682,7 @@ func addRows(leader int) {
         
         if connEnd[0] == 1 {
             conn.Close()
-            return
+            done = 1
         }
         
         dataSize:=make([]byte, 4)
@@ -537,109 +727,4 @@ func addRows(leader int) {
             }
         }
     }
-}
-
-//TODO delete this after finishing code for workers
-func handleWrite(conn net.Conn, leader int, conn2 *tls.Conn) {
-    dataTransferSize:= 0 //how big the query from the user is
-    dataSize := 0 //how big the data in a row is
-    in1 := make([]byte, 4)
-    in2 := make([]byte, 4)
-
-    
-    count := 0
-    //read dataTransferSize
-    for count < 4 {
-        n, err:= conn.Read(in1[count:])
-        count += n
-        if err != nil && count != 4{
-            log.Println(err)
-            log.Println(n)
-        }
-    }
-    count = 0
-    //read dataSize
-    for count < 4 {
-        n, err:= conn.Read(in2[count:])
-        count += n
-        if err != nil && count != 4{
-            log.Println(err)
-            log.Println(n)
-        }
-    }
-    
-    dataTransferSize = byteToInt(in1)
-    dataSize = byteToInt(in2)
-        
-    //get the input
-    count= 0
-    input := make([]byte, dataTransferSize)
-    for count < dataTransferSize {
-        n, err:= conn.Read(input[count:])
-        count += n
-        if err != nil && count != dataTransferSize {
-            log.Println(err)
-        }
-    } 
-    
-    //log.Println(dataSize)
-    //log.Println(dataTransferSize)
-    //register the input with c  
-    var auditSeed [16]byte
-    auditSeed = C.registerQuery((*C.uchar)(&input[0]), C.int(dataSize), C.int(dataTransferSize))
-    //log.Println(auditSeed[:])
-    
-    // if leader, send back the seed to the user
-    if leader == 1{
-        n, err:=conn.Write(auditSeed[:])
-        if err != nil {
-            log.Println(n, err)
-            return
-        }
-        
-        //also send number of layers
-        //log.Println(int(C.layers))
-        n, err=conn.Write(intToByte(int(C.layers)))
-        if err != nil {
-            log.Println(n, err)
-            return
-        }
-    }
-    
-    //process query
-    C.processQuery()
-
-    //send audit info to auditor 
-    
-    n, err := conn2.Write(intToByte(int(C.layers)))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-
-    n, err = conn2.Write(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
-    
-    //log.Println("audit materials sent")
-    //log.Println(C.GoBytes(unsafe.Pointer(C.outVector), C.layers*16*2))
-    
-    //read auditor response and give an error if it doesn't accept
-    auditResp := make([]byte, 1)
-    count = 0
-    for count < 1 {
-        n, err = conn2.Read(auditResp)
-        count += n
-        if err != nil && n != 1 {
-            log.Println(n, err)
-        }
-    }
-    
-    if auditResp[0] != 1 {
-        log.Println("Audit Failed.")
-    }
-    
-    return
 }

@@ -131,7 +131,7 @@ func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2Public
     decryptedS2, ok := box.Open(nil, s2Input[24:], &decryptNonce, s2PublicKey, auditorSecretKey)
     if !ok {
         log.Println("Decryption not ok!!")
-    }
+    } 
     
     layers[1] = byteToInt(decryptedS2[:4])
     
