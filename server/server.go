@@ -74,7 +74,7 @@ func main() {
         log.Println(err)
         return
     }
-    
+        
     //first connection for setting up rows
     conn, err := ln.Accept()
     if err != nil {
@@ -87,12 +87,13 @@ func main() {
     
     //create a bunch of channels & workers to handle requests
     blocker := make(chan int)
+    blocker2 := make(chan int)
     conns := make(chan net.Conn)
     for i := 0; i < numThreads; i++ {
         if leader == 1{
-            go leaderWorker(i, conns, blocker, serverB, auditor)
+            go leaderWorker(i, conns, blocker, blocker2, serverB, auditor)
         } else {
-            go worker(i, conns, blocker, clientPublicKey, auditorPublicKey, s2SecretKey)
+            go worker(i, conns, blocker, blocker2, clientPublicKey, auditorPublicKey, s2SecretKey)
         }
     }
     
@@ -126,6 +127,9 @@ func main() {
                     conns <- nilConn
                     //wait for workers to come back after xoring into the db
                     <- blocker
+                }
+                for i:= 0; i < numThreads; i++ {
+                    blocker2 <- 1
                 }
                 
                 //run rerandomization
@@ -163,7 +167,7 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, auditor string) {
+func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, serverB, auditor string) {
     //setup the worker-specific db
     dbSize :=  int(C.dbSize)
     db := make([][]byte, dbSize)
@@ -185,6 +189,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             
             //signal that you're done
             blocker <- 1
+            <- blocker2
         } else {//this is a write
             
             //set up connections to server B and auditor
@@ -208,7 +213,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             //1 byte connection type 3
             connType := make([]byte, 1)
             connType[0] = 3
-            n, err := conn.Write(connType)
+            n, err := connB.Write(connType)
             if err != nil {
                 log.Println(n, err)
                 return
@@ -310,6 +315,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
                 return
             }
             
+            //log.Println("done forwarding stuff")
             
             //receive boxed client audit part
             clientDataSize := 24+box.Overhead+int(C.layers)+int(C.layers)*16
@@ -336,15 +342,20 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             //run audit part
             C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
             
+            //log.Println("received client audit, ran computation")
+
+            
             //read server B boxed audit part
             s2Input := make([]byte, 24+4+(int(C.layers)*2*16)+box.Overhead)
             for count := 0; count < 24+4+(int(C.layers)*2*16)+box.Overhead; {
-                n, err:= conn.Read(s2Input[count:])
+                n, err:= connB.Read(s2Input[count:])
                 count += n
                 if err != nil && err != io.EOF && count != 24+4+(int(C.layers)*2*16)+box.Overhead{
                     log.Println(err)
                 }
             }
+            
+            //log.Println("received worker audit")
             
             //send audit parts to auditor
             n, err = connAudit.Write(intToByte(int(C.layers)))
@@ -358,16 +369,25 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
                 log.Println(n, err)
                 return
             }
-            n, err=conn.Write(s2Input)
+            log.Println(s2Input)
+            n, err=connAudit.Write(s2Input)
             if err != nil {
                 log.Println(n, err)
                 return
             }
-            n, err=conn.Write(clientAuditInput)
+            n, err=connAudit.Write(clientAuditInput)
             if err != nil {
                 log.Println(n, err)
                 return
             }
+            
+            //log.Println(outVector)
+            
+            //log.Println(s2Input)
+            
+            //log.Println(clientAuditInput)
+            
+            //log.Println("sent audit materials")
             
             //read auditor response and give an error if it doesn't accept
             auditResp := make([]byte, 1)
@@ -377,6 +397,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
                 count += n
                 if err != nil && n != 1 {
                     log.Println(n, err)
+                    return
                 }
             }
             
@@ -386,12 +407,15 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, serverB, au
             
             connB.Close()
             connAudit.Close()
+            
+            //log.Println("done")
         }
     }
 }
 
 
-func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, auditorPublicKey, s2SecretKey *[32]byte) {
+func worker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, clientPublicKey, auditorPublicKey, s2SecretKey *[32]byte) {
+    //log.Println("starting worker")
     //setup the worker-specific db
     dbSize :=  int(C.dbSize)
     db := make([][]byte, dbSize)
@@ -401,7 +425,8 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
     vector := make([]byte, dbSize*16)
     outVector := make([]byte, 2*int(C.layers)*16)
     
-    for conn := range conns {        
+    for conn := range conns {   
+        //log.Println("worker sees a new connection")
         if conn == nil {//this is a read
             //xor the worker's DB into the main DB
             for i := 0; i < dbSize; i++ {
@@ -413,7 +438,10 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
             
             //signal that you're done
             blocker <- 1
+            <- blocker2
         } else {//this is a write
+            
+            //log.Println("worker processing write")
             
             //read sizes and boxed query
             in1 := make([]byte, 4)
@@ -471,6 +499,8 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
             if !ok {
                 log.Println("Decryption not ok!!")
             }
+            
+            //log.Println("worker decrypted client query")
                         
             //run dpf, xor into local db
             for i:= 0; i < dbSize; i++ {
@@ -499,6 +529,8 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, clientPublicKey, 
                 log.Println(n, err)
                 return
             }
+            
+            //log.Println("worker done")
         }
     }
 }
@@ -540,7 +572,7 @@ func handleLeaderRead(conn net.Conn, serverB string){
     if err != nil {
         log.Println(err)
     }
-    
+        
     //write index and rowId to server B
     //1 byte connection type 2
     connType := make([]byte, 1)
@@ -561,8 +593,10 @@ func handleLeaderRead(conn net.Conn, serverB string){
         log.Println(n, err)
     }
     
+    
     //get data size
     size := int(C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index))))
+
     
     //make space for responses
     data := make([]byte, size)
@@ -570,14 +604,13 @@ func handleLeaderRead(conn net.Conn, serverB string){
 
     //get data
     C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
+        
     
-    
-    //write back seed and data
     //read response from server B
     boxBSize := 24+box.Overhead+16+size
     boxB := make([]byte, boxBSize)
     for count := 0; count < boxBSize; {
-        n, err= conn.Read(boxB[count:])
+        n, err= connB.Read(boxB[count:])
         count += n
         if err != nil && count != boxBSize{
             log.Println(err)
@@ -585,6 +618,9 @@ func handleLeaderRead(conn net.Conn, serverB string){
         }
     }
     
+    //log.Println(boxB)
+        
+    //write back seed and data
     //write server A response
     n, err=conn.Write(seed)
     if err != nil {
@@ -603,7 +639,7 @@ func handleLeaderRead(conn net.Conn, serverB string){
         log.Println(n, err)
         return
     }
-    
+        
 }
 
 
@@ -634,9 +670,10 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
         }
     }
     
+    
     //get data size
     size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
-    
+        
     //make space for responses
     data := make([]byte, size)
     seed := make([]byte, 16)
@@ -658,13 +695,15 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     }
     
     readCiphertext := box.Seal(nonce[:], readPlaintext, &nonce, clientPublicKey, s2SecretKey)
-    
+    //log.Println(readCiphertext)
+        
     //send boxed message to server A
     n, err := conn.Write(readCiphertext)
     if err != nil {
         log.Println(n, err)
         return
     }
+    
 }
 
 func addRows(leader int, conn net.Conn) {

@@ -105,7 +105,7 @@ func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2Public
     }
     layers[0] = byteToInt(layersInput)
     
-    dataTransferSize := layers[1]*2*16
+    dataTransferSize := layers[0]*2*16
     serverAInput = make([]byte, dataTransferSize)
     for count := 0; count < dataTransferSize; {
         n, err:= conn.Read(serverAInput[count:])
@@ -130,6 +130,7 @@ func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2Public
     copy(decryptNonce[:], s2Input[:24])
     decryptedS2, ok := box.Open(nil, s2Input[24:], &decryptNonce, s2PublicKey, auditorSecretKey)
     if !ok {
+        log.Println(s2Input)
         log.Println("Decryption not ok!!")
     } 
     

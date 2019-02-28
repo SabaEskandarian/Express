@@ -160,7 +160,7 @@ func main() {
     writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
     log.Println("wrote message")
     
-    rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
+    rowVal = readRow(11, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 11 is ")
     log.Println(string(rowVal))      
     
@@ -325,6 +325,7 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
         }
     }
     
+        
     size := C.db[localIndex].dataSize
     dataA := make([]byte, size)
     for count := 0; count < int(size); {
@@ -336,8 +337,9 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
         }
     }
     
+    
     //read, unbox, and parse seed and data from server B
-    boxBSize := 24+box.Overhead+16+int(size)
+    boxBSize := box.Overhead+16+int(size)+24
     boxB := make([]byte, boxBSize)
     for count := 0; count < boxBSize; {
         n, err= conn.Read(boxB[count:])
@@ -352,6 +354,7 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
     copy(decryptNonce[:], boxB[:24])
     decryptedS2, ok := box.Open(nil, boxB[24:], &decryptNonce, s2PublicKey, clientSecretKey)
     if !ok {
+        //log.Println(boxB)
         log.Println("Decryption not ok!!")
     }
     
@@ -437,7 +440,7 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     //prepare message for server B, box it, and send to server A
     
-    serverBPlaintext := append(intToByte(dataSize), C.GoBytes(unsafe.Pointer(dpfQueryB), C.int(intQuerySize))...)
+    serverBPlaintext := C.GoBytes(unsafe.Pointer(dpfQueryB), C.int(intQuerySize))
     
     //box serverBPlaintext
     
