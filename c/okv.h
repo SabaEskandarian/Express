@@ -16,7 +16,7 @@ int initializeServer(int numThreads);
 
 int processnewEntry(int dataSize, uint8_t *rowKey);
 
-void xorIn(int i, int j, uint8_t data);
+void xorIn(int i, uint8_t *data);
 
 void rerandDB();
 

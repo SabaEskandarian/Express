@@ -16,7 +16,7 @@ import (
     "log"
     "crypto/tls"
     "unsafe"
-    //"time"
+    "time"
     "crypto/rand"
     "golang.org/x/crypto/nacl/box"
     "strings"
@@ -32,7 +32,7 @@ func main() {
     
     //parameters for tests
     //remember to start servers in order: auditor, server 1, server, client
-    //latencyTest := 1 //set to 0 for throughput test instead
+    latencyTest := 1 //set to 0 for throughput test instead
     numThreads := 8 //how many writes to initiate at once when going for throughput
     dataLen := 1000
     dbSize := 1000
@@ -107,7 +107,7 @@ func main() {
     for i := 0; i < dataLen; i++ {
         msg[i] = 'a'
     }
-    /*
+    
     //begin tests
     if latencyTest == 1 {
         
@@ -118,7 +118,7 @@ func main() {
             //measured ops here
             startTime := time.Now()
 
-            writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+            writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
 
             elapsedTime := time.Since(startTime)
             log.Printf("write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
@@ -145,19 +145,18 @@ func main() {
         }
         //measurement for this will be taken care of at the server side
     }
-    */
+    
     
     //end measurement
     
-    //log.Println("made it here")
-    
+    /*
     //the rest is here to make sure nothing is broken
     //not important for measurement
     rowVal := readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
     
-    writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+    writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
     log.Println("wrote message")
     
     rowVal = readRow(11, serverA, s2PublicKey, clientSecretKey)
@@ -167,14 +166,14 @@ func main() {
     rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
     log.Println("rowVal 13 is ")
     log.Println(string(rowVal))
-    
+    */
     
 }
 
 func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
     
     for i:=0;i<totalRuns;i++ {
-        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
     }
     return
 }
@@ -377,7 +376,7 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
 }
 
 //this is the only function that can safely be called in parallel goroutines
-func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
+func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, waitforDone int) {
     
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -389,6 +388,7 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         log.Println(err)
         return
     }
+    defer conn.Close()
     
     dataSize := len(data)
     querySize := make([]byte, 4)
@@ -514,4 +514,16 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     C.free(unsafe.Pointer(nonZeroVectors))
     C.free(unsafe.Pointer(dpfQueryA))
     C.free(unsafe.Pointer(dpfQueryB))
+    
+    if waitforDone == 1{
+        done := make([]byte, 4)
+        for count := 0; count < 4; {
+            n, err= conn.Read(done[count:])
+            count += n
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+            }
+        }
+    }
 }

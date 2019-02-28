@@ -181,10 +181,8 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
         if conn == nil {//this is a read
             //xor the worker's DB into the main DB
             for i := 0; i < dbSize; i++ {
-                for j := 0; j < len(db[i]); j++ {
-                    C.xorIn(C.int(i), C.int(j), C.uchar(db[i][j]))
-                    db[i][j] = 0
-                }
+                C.xorIn(C.int(i), (*C.uchar)(&db[i][0]))
+                db[i] = make([]byte, int(C.db[i].dataSize))
             }
             
             //signal that you're done
@@ -369,7 +367,6 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 log.Println(n, err)
                 return
             }
-            log.Println(s2Input)
             n, err=connAudit.Write(s2Input)
             if err != nil {
                 log.Println(n, err)
@@ -380,12 +377,6 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 log.Println(n, err)
                 return
             }
-            
-            //log.Println(outVector)
-            
-            //log.Println(s2Input)
-            
-            //log.Println(clientAuditInput)
             
             //log.Println("sent audit materials")
             
@@ -404,6 +395,12 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
             if auditResp[0] != 1 {
                 log.Println("Audit Failed.")
             }
+            
+            //send signal that we're done if client is still connected
+            done := 1
+            n, err=conn.Write(intToByte(done))
+            //ignore any error this may return 
+            //since sometimes the client will not wait for this
             
             connB.Close()
             connAudit.Close()
@@ -430,10 +427,8 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan i
         if conn == nil {//this is a read
             //xor the worker's DB into the main DB
             for i := 0; i < dbSize; i++ {
-                for j := 0; j < len(db[i]); j++ {
-                    C.xorIn(C.int(i), C.int(j), C.uchar(db[i][j]))
-                    db[i][j] = 0
-                }
+                C.xorIn(C.int(i), (*C.uchar)(&db[i][0]))
+                db[i] = make([]byte, int(C.db[i].dataSize))
             }
             
             //signal that you're done
