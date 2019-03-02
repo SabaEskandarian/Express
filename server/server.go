@@ -22,6 +22,7 @@ import (
     "crypto/rand"
     "golang.org/x/crypto/nacl/box"
     "strings"
+    "sync/atomic"
 )
 
 func main() {
@@ -85,16 +86,23 @@ func main() {
     addRows(leader, conn)
     //no more adding rows after here
     
+    var ops uint64
+    ops = 0
+    
     //create a bunch of channels & workers to handle requests
     blocker := make(chan int)
     blocker2 := make(chan int)
     conns := make(chan net.Conn)
     for i := 0; i < numThreads; i++ {
         if leader == 1{
-            go leaderWorker(i, conns, blocker, blocker2, serverB, auditor)
+            go leaderWorker(i, conns, blocker, blocker2, serverB, auditor, &ops)
         } else {
             go worker(i, conns, blocker, blocker2, clientPublicKey, auditorPublicKey, s2SecretKey)
         }
+    }
+    
+    if leader == 1{
+        go reportThroughput(&ops)    
     }
     
     writeHappened := false
@@ -167,7 +175,17 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, serverB, auditor string) {
+func reportThroughput(ops *uint64) {
+    startTime := time.Now()
+    for {
+        time.Sleep(time.Second*10)
+        elapsedTime := time.Since(startTime)
+        opCount := atomic.LoadUint64(ops)
+        log.Printf("Time Elapsed: %s; number of writes: %d", elapsedTime, opCount)   
+    }
+}
+
+func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, serverB, auditor string, ops *uint64 ) {
     //setup the worker-specific db
     dbSize :=  int(C.dbSize)
     db := make([][]byte, dbSize)
@@ -404,6 +422,9 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
             
             connB.Close()
             connAudit.Close()
+            
+            //increment counter
+            atomic.AddUint64(ops, 1)
             
             //log.Println("done")
         }

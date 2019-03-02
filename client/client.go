@@ -32,10 +32,10 @@ func main() {
     
     //parameters for tests
     //remember to start servers in order: auditor, server 1, server, client
-    latencyTest := 1 //set to 0 for throughput test instead
+    latencyTest := 0 //set to 0 for throughput test instead
     numThreads := 8 //how many writes to initiate at once when going for throughput
-    dataLen := 1000
-    dbSize := 1000
+    dataLen := 160
+    dbSize := 100000
     //dataLen values to try: 100, 1000, 10000, 100000, 1000000
     //dbSize values to try: 1000, 10000, 100000, 1000000
     
@@ -139,11 +139,17 @@ func main() {
         
     } else { //throughput test
         maxOps := 10000 //number of times each thread will write
+        blocker := make(chan int)
+
         //runs nonstop 
         for i := 0; i < numThreads; i++ {
-            go throughputWriter(i, maxOps, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+            go throughputWriter(i, maxOps, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, blocker)
         }
         //measurement for this will be taken care of at the server side
+        
+        for i := 0; i < numThreads; i++{
+            <- blocker
+        }
     }
     
     
@@ -170,11 +176,12 @@ func main() {
     
 }
 
-func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
+func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, blocker chan<- int) {
     
     for i:=0;i<totalRuns;i++ {
         writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
     }
+    blocker <- 1
     return
 }
 
