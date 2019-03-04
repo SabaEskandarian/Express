@@ -81,12 +81,12 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     //check if rowId is taken in db and return 1 if that happens
     //we would need a second counter to handle this in reality
     //this could be made more efficient, but I don't really care about optimizing registration time atm
-    for(int i = 0; i < dbSize; i++){
-        if(memcmp(&realRowId, &(db[i].rowID), 16) == 0){
-            printf("row id already taken!\n");
-            return 1;
-        }
-    }
+    //for(int i = 0; i < dbSize; i++){
+    //    if(memcmp(&realRowId, &(db[i].rowID), 16) == 0){
+    //        printf("row id already taken!\n");
+    //        return 1;
+    //    }
+    //}
     
     vatRow entry;
     

@@ -20,6 +20,8 @@ import (
     "crypto/rand"
     "golang.org/x/crypto/nacl/box"
     "strings"
+    "os"
+    "strconv"
 )
 
 var serverA string
@@ -32,12 +34,26 @@ func main() {
     
     //parameters for tests
     //remember to start servers in order: auditor, server 1, server, client
-    latencyTest := 0 //set to 0 for throughput test instead
+    latencyTest := 1 //set to 0 for throughput test instead
     numThreads := 8 //how many writes to initiate at once when going for throughput
     dataLen := 160
-    dbSize := 100000
+    rowsCreated := 1 //just create 1 row this way, the rest will be created by the servers
     //dataLen values to try: 100, 1000, 10000, 100000, 1000000
     //dbSize values to try: 1000, 10000, 100000, 1000000
+    
+    if len(os.Args) < 5 {
+        log.Println("usage: client [serverAip:port] [serverBip:port] [numThreads] [rowDataSize] (optional)throughput")
+        return
+    } else {
+        serverA = os.Args[1]
+        serverB = os.Args[2]
+        numThreads, _ = strconv.Atoi(os.Args[3])
+        dataLen, _ = strconv.Atoi(os.Args[4])
+    }
+    
+    if len(os.Args) > 5 {
+        latencyTest = 0
+    }
     
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -80,11 +96,11 @@ func main() {
         return
     }
     //use the connections set up at the beginning to add a bunch of rows really fast
-    for i:= 0; i < dbSize; i++ {
+    for i:= 0; i < rowsCreated; i++ {
         addRow(dataLen, connA, connB) 
-        if i % 10000 == 0 {
-            log.Println("added 10000 rows")
-        }
+        //if i % 10000 == 0 && i != 0 {
+        //    log.Println("added 10000 rows")
+        //}
     }
     //close the connections we used for setup
     connEnd := make([]byte, 1) 
@@ -118,24 +134,24 @@ func main() {
             //measured ops here
             startTime := time.Now()
 
-            writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
+            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
 
             elapsedTime := time.Since(startTime)
-            log.Printf("write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
+            log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
             totalTimeWrite += elapsedTime
 
             //measured ops here
             startTime = time.Now()
             
-            readRow(13, serverA, s2PublicKey, clientSecretKey)
+            readRow(0, serverA, s2PublicKey, clientSecretKey)
 
             elapsedTime = time.Since(startTime)
-            log.Printf("read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, elapsedTime)
+            log.Printf("read operation time (dataLen %d): %s\n", dataLen, elapsedTime)
             totalTimeRead += elapsedTime
         }
         
-        log.Printf("average write operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeWrite/10)
-        log.Printf("average read operation time (dbSize %d, dataLen %d): %s\n", dbSize, dataLen, totalTimeRead/10)
+        log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
+        log.Printf("average read operation time (dataLen %d): %s\n", dataLen, totalTimeRead/10)
         
     } else { //throughput test
         maxOps := 10000 //number of times each thread will write
@@ -143,7 +159,7 @@ func main() {
 
         //runs nonstop 
         for i := 0; i < numThreads; i++ {
-            go throughputWriter(i, maxOps, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, blocker)
+            go throughputWriter(i, maxOps, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, blocker)
         }
         //measurement for this will be taken care of at the server side
         
@@ -156,6 +172,7 @@ func main() {
     //end measurement
     
     /*
+     * this stuff won't work with the new test setup
     //the rest is here to make sure nothing is broken
     //not important for measurement
     rowVal := readRow(13, serverA, s2PublicKey, clientSecretKey)

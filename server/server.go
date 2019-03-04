@@ -23,17 +23,33 @@ import (
     "golang.org/x/crypto/nacl/box"
     "strings"
     "sync/atomic"
+    "strconv"
 )
+
+var numThreads int
 
 func main() {
     auditor := "127.0.0.1:4444"
     serverB := "127.0.0.1:4442"
-    numThreads := 16
+    numThreads = 16
+    numRowsSetup := 0
+    dataSizeSetup := 160
 
     log.SetFlags(log.Lshortfile) 
     
+    if len(os.Args) < 6 {
+        log.Println("usage: server [auditorip:port] [serverBip:port] [numThreads] [numRows] [rowDataSize] (optional)leader")
+        return
+    } else {
+        auditor = os.Args[1]
+        serverB = os.Args[2]
+        numThreads, _ = strconv.Atoi(os.Args[3])
+        numRowsSetup, _ = strconv.Atoi(os.Args[4])
+        dataSizeSetup, _ = strconv.Atoi(os.Args[5])
+    }
+    
     leader := 0
-    if len(os.Args) > 1 {
+    if len(os.Args) > 6 {
         leader = 1
     }
     
@@ -75,6 +91,7 @@ func main() {
         log.Println(err)
         return
     }
+    
         
     //first connection for setting up rows
     conn, err := ln.Accept()
@@ -84,6 +101,16 @@ func main() {
     }
     conn.SetDeadline(time.Time{})
     addRows(leader, conn)
+    
+    //server sets up a numRows rows on its own
+    for i:=0; i < numRowsSetup; i++ {
+        var setupRowKey [16]byte
+        _, err = rand.Read(setupRowKey[:])
+        if err != nil{
+            log.Println("couldn't get randomness for row key!")
+        }
+        C.processnewEntry(C.int(dataSizeSetup), (*C.uchar)(&setupRowKey[0]))
+    }
     //no more adding rows after here
     
     var ops uint64
@@ -343,8 +370,33 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     log.Println(err)
                 }
             }
-                        
+
             //run dpf, xor into local db
+            //spread the eval across goroutines
+            parablocker := make(chan int)
+            startPoint := 0
+            endPoint := dbSize
+            for k:=1; k <= numThreads; k++{
+                endPoint = k*dbSize/numThreads
+                go func(startPoint, endPoint int, vector []byte, db [][]byte) {
+                    for i:= startPoint; i < endPoint; i++{
+                        ds := int(C.db[i].dataSize)
+                        dataShare := make([]byte, ds)
+                        v := C.evalDPF(C.ctx[id], (*C.uchar)(&input[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                        copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                        for j := 0; j < ds; j++ {
+                            db[i][j] = db[i][j] ^ dataShare[j]
+                        }
+                    }
+                    parablocker <- 1
+                }(startPoint, endPoint, vector, db)
+                startPoint = endPoint
+            }
+            for k:= 1; k <= numThreads; k++{
+                <-parablocker
+            }
+            
+            /*
             for i:= 0; i < dbSize; i++ {
                 ds := int(C.db[i].dataSize)
                 dataShare := make([]byte, ds)
@@ -354,6 +406,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     db[i][j] = db[i][j] ^ dataShare[j]
                 }
             }
+            */
             
             //run audit part
             C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
@@ -517,7 +570,33 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan i
             }
             
             //log.Println("worker decrypted client query")
-                        
+            
+            //run dpf, xor into local db
+            //spread the eval across goroutines
+            parablocker := make(chan int)
+            startPoint := 0
+            endPoint := dbSize
+            for k:=1; k <= numThreads; k++{
+                endPoint = k*dbSize/numThreads
+                go func(startPoint, endPoint int, vector []byte, db [][]byte) {
+                    for i:= startPoint; i < endPoint; i++{
+                        ds := int(C.db[i].dataSize)
+                        dataShare := make([]byte, ds)
+                        v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                        copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                        for j := 0; j < ds; j++ {
+                            db[i][j] = db[i][j] ^ dataShare[j]
+                        }
+                    }
+                    parablocker <- 1
+                }(startPoint, endPoint, vector, db)
+                startPoint = endPoint
+            }
+            for k:= 1; k <= numThreads; k++{
+                <-parablocker
+            }
+              
+            /*
             //run dpf, xor into local db
             for i:= 0; i < dbSize; i++ {
                 ds := int(C.db[i].dataSize)
@@ -528,6 +607,7 @@ func worker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan i
                     db[i][j] = db[i][j] ^ dataShare[j]
                 }
             }
+            */
             
             //run audit part
             C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
