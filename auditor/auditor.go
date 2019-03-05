@@ -14,7 +14,6 @@ import (
     "crypto/tls"
     "net"
     "time"
-    "io"
     "golang.org/x/crypto/nacl/box"
     "strings"
 )
@@ -58,6 +57,9 @@ func main() {
         return
     }
     
+    s2SharedKey := new([32]byte)
+    box.Precompute(s2SharedKey, s2PublicKey, auditorSecretKey)
+    
     for {
         conn, err := ln.Accept()
         if err != nil {
@@ -65,7 +67,7 @@ func main() {
         }
         conn.SetDeadline(time.Time{})
         
-        go handleConnection(conn, auditorSecretKey, clientPublicKey, s2PublicKey)
+        go handleConnection(conn, auditorSecretKey, clientPublicKey, s2SharedKey)
     }
 }
 
@@ -83,106 +85,99 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2PublicKey *[32]byte) {
+func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2SharedKey *[32]byte) {
     defer conn.Close()
     
-    var userBits []byte
-    var userNonZeros []byte
-    var serverAInput []byte
-    var serverBInput []byte
     var layers [2]int
     
-    //read server 1 input
-    layersInput := make([]byte, 4)
-    for count := 0; count < 4; {
-        n, err := conn.Read(layersInput[count:])
-        count += n
-        if err != nil && count != 4{
-            log.Println(err)
-            log.Println(n)
+    //just repeatedly use the same connection to save time for setting up new connections
+    for{
+        //read server 1 input
+        layersInput := make([]byte, 4)
+        for count := 0; count < 4; {
+            n, err := conn.Read(layersInput[count:])
+            count += n
+            if err != nil && count != 4{
+                log.Println(err)
+                log.Println(n)
+                return
+            }
+        }
+        layers[0] = byteToInt(layersInput)
+        
+        dataTransferSize := layers[0]*2*16
+        s2DataSize := 24+4+dataTransferSize+box.Overhead
+        clientDataSize := 24+box.Overhead+layers[0]+layers[0]*16
+
+        totalDataRead := layers[0]*2*16 + 24+4+dataTransferSize+box.Overhead + 24+box.Overhead+layers[0]+layers[0]*16
+        
+        //get all the inputs
+        allInputs := make([]byte, totalDataRead)
+        for count := 0; count < totalDataRead; {
+            n, err := conn.Read(allInputs[count:])
+            count += n
+            if err != nil && count != totalDataRead{
+                log.Println(err)
+                log.Println(n)
+                return
+            }
+        }
+        
+        serverAInput := allInputs[:dataTransferSize]
+        s2Input := allInputs[dataTransferSize:dataTransferSize+s2DataSize]
+        clientInput := allInputs[dataTransferSize+s2DataSize:dataTransferSize+s2DataSize+clientDataSize]
+        
+        //unbox and parse server 2 input
+        
+        var decryptNonce [24]byte
+        copy(decryptNonce[:], s2Input[:24])
+        decryptedS2, ok := box.OpenAfterPrecomputation(nil, s2Input[24:], &decryptNonce, s2SharedKey)
+        if !ok {
+            log.Println(s2Input)
+            log.Println("Decryption not ok!!")
+        } 
+        
+        layers[1] = byteToInt(decryptedS2[:4])
+        
+        //serverBInput = make([]byte, dataTransferSize)
+        serverBInput := decryptedS2[4:]
+        
+        
+        //unbox and parse client input
+        
+        copy(decryptNonce[:], clientInput[:24])
+        decryptedClient, ok := box.Open(nil, clientInput[24:],&decryptNonce, clientPublicKey, auditorSecretKey)
+        if !ok {
+            log.Println("Decryption not ok!!")
+        }
+        
+        //userBits = make([]byte, layers[0])
+        userBits := decryptedClient[:layers[0]]
+        
+        //userNonZeros = make([]byte, layers[0]*16)
+        userNonZeros := decryptedClient[layers[0]:]
+
+        
+        auditResp := 0
+        //run the auditing
+        if layers[0] == layers[1]{
+            auditResp = int(C.auditorVerify(C.int(layers[0]), (*C.uchar)(&userBits[0]), (*C.uchar)(&userNonZeros[0]), (*C.uchar)(&serverAInput[0]), (*C.uchar)(&serverBInput[0])));
+        } else {
+            log.Println("values for layers did not match")
+        }
+
+        if auditResp == 0 {
+            log.Println("auditing failed? :(")
+            //return
+        }
+        
+        //send response
+        auditPass :=make([]byte,1)
+        auditPass[0] = byte(auditResp)
+        n, err := conn.Write(auditPass)
+        if err != nil {
+            log.Println(n, err)
             return
         }
-    }
-    layers[0] = byteToInt(layersInput)
-    
-    dataTransferSize := layers[0]*2*16
-    serverAInput = make([]byte, dataTransferSize)
-    for count := 0; count < dataTransferSize; {
-        n, err:= conn.Read(serverAInput[count:])
-        count += n
-        if err != nil && err != io.EOF && count != dataTransferSize{
-            log.Println(err)
-        }
-    }
-    
-    
-    //read, unbox, and parse server 2 input
-    s2Input := make([]byte, 24+4+dataTransferSize+box.Overhead)
-    for count := 0; count < 24+4+dataTransferSize+box.Overhead; {
-        n, err:= conn.Read(s2Input[count:])
-        count += n
-        if err != nil && err != io.EOF && count != 24+4+dataTransferSize+box.Overhead{
-            log.Println(err)
-        }
-    }
-    
-    var decryptNonce [24]byte
-    copy(decryptNonce[:], s2Input[:24])
-    decryptedS2, ok := box.Open(nil, s2Input[24:], &decryptNonce, s2PublicKey, auditorSecretKey)
-    if !ok {
-        log.Println(s2Input)
-        log.Println("Decryption not ok!!")
-    } 
-    
-    layers[1] = byteToInt(decryptedS2[:4])
-    
-    //serverBInput = make([]byte, dataTransferSize)
-    serverBInput = decryptedS2[4:]
-    
-    
-    //read, unbox, and parse client input
-    clientDataSize := 24+box.Overhead+layers[0]+layers[0]*16
-    clientInput := make([]byte, clientDataSize)
-    for count := 0; count < clientDataSize; {
-        n, err:= conn.Read(clientInput[count:])
-        count += n
-        if err != nil && err != io.EOF && count != clientDataSize{
-            log.Println(err)
-        }
-    }
-    
-    copy(decryptNonce[:], clientInput[:24])
-    decryptedClient, ok := box.Open(nil, clientInput[24:],&decryptNonce, clientPublicKey, auditorSecretKey)
-    if !ok {
-        log.Println("Decryption not ok!!")
-    }
-    
-    //userBits = make([]byte, layers[0])
-    userBits = decryptedClient[:layers[0]]
-    
-    //userNonZeros = make([]byte, layers[0]*16)
-    userNonZeros = decryptedClient[layers[0]:]
-
-    
-    auditResp := 0
-    //run the auditing
-    if layers[0] == layers[1]{
-        auditResp = int(C.auditorVerify(C.int(layers[0]), (*C.uchar)(&userBits[0]), (*C.uchar)(&userNonZeros[0]), (*C.uchar)(&serverAInput[0]), (*C.uchar)(&serverBInput[0])));
-    } else {
-        log.Println("values for layers did not match")
-    }
-
-    if auditResp == 0 {
-        log.Println("auditing failed? :(")
-        //return
-    }
-    
-    //send response
-    auditPass :=make([]byte,1)
-    auditPass[0] = byte(auditResp)
-    n, err := conn.Write(auditPass)
-    if err != nil {
-        log.Println(n, err)
-        return
     }
 }

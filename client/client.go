@@ -40,7 +40,7 @@ func main() {
     rowsCreated := 1 //just create 1 row this way, the rest will be created by the servers
     //dataLen values to try: 100, 1000, 10000, 100000, 1000000
     //dbSize values to try: 1000, 10000, 100000, 1000000
-    
+
     if len(os.Args) < 5 {
         log.Println("usage: client [serverAip:port] [serverBip:port] [numThreads] [rowDataSize] (optional)throughput")
         return
@@ -50,7 +50,7 @@ func main() {
         numThreads, _ = strconv.Atoi(os.Args[3])
         dataLen, _ = strconv.Atoi(os.Args[4])
     }
-    
+
     if len(os.Args) > 5 {
         latencyTest = 0
     }
@@ -130,15 +130,18 @@ func main() {
         var totalTimeWrite time.Duration
         var totalTimeRead time.Duration
         
-        for i:=0; i < 10; i++{
+        //there's a warmup effect on the server, so drop first time
+        for i:=0; i < 11; i++{
             //measured ops here
             startTime := time.Now()
 
-            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
+            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
 
             elapsedTime := time.Since(startTime)
             log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
-            totalTimeWrite += elapsedTime
+            if i > 0 {
+                totalTimeWrite += elapsedTime
+            }
 
             //measured ops here
             startTime = time.Now()
@@ -147,7 +150,9 @@ func main() {
 
             elapsedTime = time.Since(startTime)
             log.Printf("read operation time (dataLen %d): %s\n", dataLen, elapsedTime)
-            totalTimeRead += elapsedTime
+            if i > 0 {
+                totalTimeRead += elapsedTime
+            }
         }
         
         log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
@@ -196,7 +201,7 @@ func main() {
 func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, blocker chan<- int) {
     
     for i:=0;i<totalRuns;i++ {
-        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
+        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
     }
     blocker <- 1
     return
@@ -400,7 +405,7 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
 }
 
 //this is the only function that can safely be called in parallel goroutines
-func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, waitforDone int) {
+func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
     
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -439,27 +444,18 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     //log.Println(dataSize)
     //log.Println(querySize)
     
+    msg := append(intToByte(intQuerySize), intToByte(dataSize)...)
+    
     //write dataTransferSize
-    n, err = conn.Write(intToByte(intQuerySize))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
+
     
     //write dataSize
-    n, err = conn.Write(intToByte(dataSize))
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
     
     //write the query
     sendQuery := C.GoBytes(unsafe.Pointer(dpfQueryA), C.int(intQuerySize))
-    n, err = conn.Write(sendQuery)
-    if err != nil {
-        log.Println(n, err)
-        return
-    }
+    
+    msg = append(msg, sendQuery...)
+    
     
     
     //prepare message for server B, box it, and send to server A
@@ -477,34 +473,26 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     serverBCiphertext := box.Seal(nonce[:], serverBPlaintext, &nonce, s2PublicKey, clientSecretKey)
     
-    //send boxed value to serverA
-    n, err = conn.Write(serverBCiphertext)
+    msg = append(msg, serverBCiphertext...)
+    n, err = conn.Write(msg)
     if err != nil {
         log.Println(n, err)
         return
-    } 
+    }
     
     //read seed and layers from server A (in preparation for auditing)
-    seed := make([]byte, 16)
-    for count := 0; count < 16; {
-        n, err= conn.Read(seed[count:])
+    retA := make([]byte, 20)
+    for count := 0; count < 20; {
+        n, err= conn.Read(retA[count:])
         count += n
-        if err != nil && count != 16{
+        if err != nil && count != 20{
             log.Println(err)
             log.Println(n)
         }
     }
-    //log.Println(seed)
-
-    layers := make([]byte, 4)
-    for count := 0; count < 4; {
-        n, err= conn.Read(layers[count:])
-        count += n
-        if err != nil && count != 4{
-            log.Println(err)
-            log.Println(n)
-        }
-    }
+    
+    seed := retA[:16]
+    layers := retA[16:20]
     
     //prepare message for auditor, box it, and send to server A
     //prepare the auditor message
@@ -539,15 +527,13 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     C.free(unsafe.Pointer(dpfQueryA))
     C.free(unsafe.Pointer(dpfQueryB))
     
-    if waitforDone == 1{
-        done := make([]byte, 4)
-        for count := 0; count < 4; {
-            n, err= conn.Read(done[count:])
-            count += n
-            if err != nil && count != 4{
-                log.Println(err)
-                log.Println(n)
-            }
+    done := make([]byte, 4)
+    for count := 0; count < 4; {
+        n, err= conn.Read(done[count:])
+        count += n
+        if err != nil && count != 4{
+            log.Println(err)
+            log.Println(n)
         }
     }
 }
