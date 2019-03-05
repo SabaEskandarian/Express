@@ -15,7 +15,7 @@
 #define MAX_LAYERS 20
 #define MAX_DB_SIZE 1000000
 #define MAX_DATA_SIZE 10000000
-#define MAX_THREADS 128
+#define MAX_THREADS 1024
 
 //use prime 2^128-159
 //so wrapping around involves a gap of size 159

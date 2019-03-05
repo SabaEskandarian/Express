@@ -151,10 +151,8 @@ func handleConnection(conn net.Conn, auditorSecretKey, clientPublicKey, s2Shared
             log.Println("Decryption not ok!!")
         }
         
-        //userBits = make([]byte, layers[0])
         userBits := decryptedClient[:layers[0]]
         
-        //userNonZeros = make([]byte, layers[0]*16)
         userNonZeros := decryptedClient[layers[0]:]
 
         

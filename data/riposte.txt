@@ -1,0 +1,61 @@
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 0
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 1
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 2
+./client -leader 10.142.0.2:9090 -threads 16 -hammer
+
+
+160 bytes message
+
+1000 rows
+28 queries/sec
+
+10,000 rows
+27 queries/sec
+
+100,000 rows
+7 queries/sec
+
+1,000,000 rows
+.7 queries/sec
+
+10,000,000 rows //crashes after first one, and the first number is not usually reliable (way too low)
+.03 
+
+
+1KB message
+
+1000 rows
+20 queries/sec
+
+10,000 rows 
+9 queries/sec
+
+100,000 rows //crashes after first one, and the first number is not usually reliable (way too low)
+.18
+
+1,000,000 rows
+
+
+10,000,000 rows
+
+
+
+10KB message?
+
+1000 rows
+2.3 queries/sec
+
+10,000 rows
+
+
+100,000 rows
+
+
+1,000,000 rows
+
+
+10,000,000 rows
+
+_______________________________________
+redo experiments with client and auditor on west coast, server 1 on east coast, and server 2 central
+

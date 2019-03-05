@@ -38,8 +38,6 @@ func main() {
     numThreads := 8 //how many writes to initiate at once when going for throughput
     dataLen := 160
     rowsCreated := 1 //just create 1 row this way, the rest will be created by the servers
-    //dataLen values to try: 100, 1000, 10000, 100000, 1000000
-    //dbSize values to try: 1000, 10000, 100000, 1000000
 
     if len(os.Args) < 5 {
         log.Println("usage: client [serverAip:port] [serverBip:port] [numThreads] [rowDataSize] (optional)throughput")

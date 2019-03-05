@@ -1,0 +1,109 @@
+setup:
+client: instance-1 (east)
+auditor: instance-2 (east)
+serverA: instance5-west-client (west)
+serverB: instance6-central-auditor (central)
+
+dbsize 100, datasize 256
+client.go:156: average write operation time (dataLen 256): 430.845013ms
+client.go:157: average read operation time (dataLen 256): 474.741153ms
+dbsize 1000, datasize 256
+client.go:156: average write operation time (dataLen 256): 481.854418ms
+client.go:157: average read operation time (dataLen 256): 506.773206ms
+dbsize 10000, datasize 256
+client.go:156: average write operation time (dataLen 256): 549.503568ms
+client.go:157: average read operation time (dataLen 256): 521.239257ms
+dbsize 100000, datasize 256
+client.go:156: average write operation time (dataLen 256): 1.533713977s
+client.go:157: average read operation time (dataLen 256): 564.302994ms
+dbsize 1000000, datasize 256
+client.go:156: average write operation time (dataLen 256): 11.154406997s
+client.go:157: average read operation time (dataLen 256): 1.030471768s
+
+dbsize 100, datasize 1000
+client.go:156: average write operation time (dataLen 1000): 496.407668ms
+client.go:157: average read operation time (dataLen 1000): 526.133923ms
+dbsize 1000, datasize 1000
+client.go:156: average write operation time (dataLen 1000): 461.359916ms
+client.go:157: average read operation time (dataLen 1000): 499.438682ms
+dbsize 10000, datasize 1000
+client.go:156: average write operation time (dataLen 1000): 546.493977ms
+client.go:157: average read operation time (dataLen 1000): 500.72657ms
+dbsize 100000, datasize 1000
+client.go:156: average write operation time (dataLen 1000): 1.843994959s
+client.go:157: average read operation time (dataLen 1000): 674.621941ms
+dbsize 1000000, datasize 1000
+client.go:156: average write operation time (dataLen 1000): 14.531045029s
+client.go:157: average read operation time (dataLen 1000): 1.999296305s
+
+
+dbsize 100, datasize 10000
+client.go:156: average write operation time (dataLen 10000): 632.633873ms
+client.go:157: average read operation time (dataLen 10000): 595.321895ms
+dbsize 1000, datasize 10000
+client.go:156: average write operation time (dataLen 10000): 635.124726ms
+client.go:157: average read operation time (dataLen 10000): 609.343157ms
+dbsize 10000, datasize 10000
+client.go:156: average write operation time (dataLen 10000): 924.850711ms
+client.go:157: average read operation time (dataLen 10000): 691.228357ms
+dbsize 100000, datasize 10000
+client.go:156: average write operation time (dataLen 10000): 4.590531437s
+client.go:157: average read operation time (dataLen 10000): 1.868823273s
+dbsize 1000000, datasize 10000
+client.go:156: average write operation time (dataLen 10000): 37.880874485s
+client.go:157: average read operation time (dataLen 10000): 13.03233985s
+
+
+_________________________________________________________
+Repeat with all servers in same datacenter
+
+setup: all 4 instances in east: instance 1 client, instance 2 auditor, instance 3 serverA, instance 4 serverB
+
+
+dbSize 100, dataSize 256
+client.go:156: average write operation time (dataLen 256): 24.344608ms
+client.go:157: average read operation time (dataLen 256): 45.416538ms
+dbSize 1000, dataSize 256
+client.go:156: average write operation time (dataLen 256): 34.057998ms
+client.go:157: average read operation time (dataLen 256): 43.173971ms
+dbSize 10000, dataSize 256
+client.go:156: average write operation time (dataLen 256): 128.879205ms
+client.go:157: average read operation time (dataLen 256): 47.813959ms
+dbSize 100000, dataSize 256
+client.go:156: average write operation time (dataLen 256): 1.096565948s
+client.go:157: average read operation time (dataLen 256): 104.4055ms
+dbSize 1000000, dataSize 256
+client.go:156: average write operation time (dataLen 256): 10.77142145s
+client.go:157: average read operation time (dataLen 256): 590.767223ms
+
+dbSize 100, dataSize 1000
+client.go:156: average write operation time (dataLen 1000): 23.658981ms
+client.go:157: average read operation time (dataLen 1000): 43.492142ms
+dbSize 1000, dataSize 1000
+client.go:156: average write operation time (dataLen 1000): 37.235581ms
+client.go:157: average read operation time (dataLen 1000): 44.728484ms
+dbSize 10000, dataSize 1000
+client.go:156: average write operation time (dataLen 1000): 161.893922ms
+client.go:157: average read operation time (dataLen 1000): 59.213711ms
+dbSize 100000, dataSize 1000
+client.go:156: average write operation time (dataLen 1000): 1.389106188s
+client.go:157: average read operation time (dataLen 1000): 195.836817ms
+dbSize 1000000, dataSize 1000
+client.go:156: average write operation time (dataLen 1000): 14.08496741s
+client.go:157: average read operation time (dataLen 1000): 1.494724641s
+
+dbSize 100, dataSize 10000
+client.go:156: average write operation time (dataLen 10000): 26.906757ms
+client.go:157: average read operation time (dataLen 10000): 45.941775ms
+dbSize 1000, dataSize 10000
+client.go:156: average write operation time (dataLen 10000): 60.076585ms
+client.go:157: average read operation time (dataLen 10000): 55.833596ms
+dbSize 10000, dataSize 10000
+client.go:156: average write operation time (dataLen 10000): 393.372984ms
+client.go:157: average read operation time (dataLen 10000): 167.749241ms
+dbSize 100000, dataSize 10000
+client.go:156: average write operation time (dataLen 10000): 3.721784143s
+client.go:157: average read operation time (dataLen 10000): 1.267020876s
+dbSize 1000000, dataSize 10000
+client.go:156: average write operation time (dataLen 10000): 36.688860783s
+client.go:157: average read operation time (dataLen 10000): 11.98065076s

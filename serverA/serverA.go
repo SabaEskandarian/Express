@@ -108,7 +108,6 @@ func main() {
         conn, err := ln.Accept()
         if err != nil {
             log.Println(err)
-            //continue
         }
         conn.SetDeadline(time.Time{})
         
