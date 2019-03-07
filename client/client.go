@@ -133,7 +133,7 @@ func main() {
             //measured ops here
             startTime := time.Now()
 
-            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
 
             elapsedTime := time.Since(startTime)
             log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
@@ -199,7 +199,7 @@ func main() {
 func throughputWriter(threadNum, totalRuns, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, blocker chan<- int) {
     
     for i:=0;i<totalRuns;i++ {
-        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey)
+        writeRow(threadNum, localIndex, data, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
     }
     blocker <- 1
     return
@@ -403,7 +403,29 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
 }
 
 //this is the only function that can safely be called in parallel goroutines
-func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte) {
+func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, measureClient int) {
+    
+    /*
+             var totalTimeWrite time.Duration
+        var totalTimeRead time.Duration
+        
+        //there's a warmup effect on the server, so drop first time
+        for i:=0; i < 11; i++{
+            //measured ops here
+            startTime := time.Now()
+
+            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
+
+            elapsedTime := time.Since(startTime)
+            log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
+            if i > 0 {
+                totalTimeWrite += elapsedTime
+            }
+     */
+    
+    var totalTime time.Duration
+    startTime := time.Now()
+    
     
     conf := &tls.Config{
          InsecureSkipVerify: true,
@@ -429,6 +451,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     intQuerySize := int(cIntQuerySize)//byteToInt(querySize)
     
+    totalTime = time.Since(startTime)
+    
     //write first message to server A
     //1 byte connection type 3
     connType := make([]byte, 1)
@@ -438,6 +462,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         log.Println(n, err)
         return
     }
+    
+    startTime = time.Now()
     
     //log.Println(dataSize)
     //log.Println(querySize)
@@ -471,6 +497,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     serverBCiphertext := box.Seal(nonce[:], serverBPlaintext, &nonce, s2PublicKey, clientSecretKey)
     
+    totalTime += time.Since(startTime)
+    
     msg = append(msg, serverBCiphertext...)
     n, err = conn.Write(msg)
     if err != nil {
@@ -488,6 +516,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
             log.Println(n)
         }
     }
+    
+    startTime = time.Now()
     
     seed := retA[:16]
     layers := retA[16:20]
@@ -513,6 +543,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     auditCiphertext := box.Seal(nonce[:], auditPlaintext, &nonce, auditorPublicKey, clientSecretKey)
     
+    totalTime += time.Since(startTime)
+    
     //send boxed audit message to server A
     n, err = conn.Write(auditCiphertext)
     if err != nil {
@@ -520,10 +552,14 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         return
     }
     
+    startTime = time.Now()
+    
     C.free(unsafe.Pointer(userBits))
     C.free(unsafe.Pointer(nonZeroVectors))
     C.free(unsafe.Pointer(dpfQueryA))
     C.free(unsafe.Pointer(dpfQueryB))
+    
+    totalTime += time.Since(startTime)
     
     done := make([]byte, 4)
     for count := 0; count < 4; {
@@ -533,5 +569,9 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
             log.Println(err)
             log.Println(n)
         }
+    }
+    
+    if measureClient == 1 {
+        log.Printf("client compute time: %s\n", totalTime)
     }
 }

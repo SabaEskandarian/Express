@@ -248,44 +248,48 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
         
         //log.Println("worker decrypted client query")
         
-        /*
-        //run dpf, xor into local db
-        //spread the eval across goroutines
-        parablocker := make(chan int)
-        startPoint := 0
-        endPoint := dbSize
-        for k:=1; k <= numThreads; k++{
-            endPoint = k*dbSize/numThreads
-            go func(startPoint, endPoint int, vector []byte, db [][]byte) {
-                for i:= startPoint; i < endPoint; i++{
-                    ds := int(C.db[i].dataSize)
-                    dataShare := make([]byte, ds)
-                    v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
-                    copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
-                    for j := 0; j < ds; j++ {
-                        db[i][j] = db[i][j] ^ dataShare[j]
-                    }
+        if numCores == 0 { //usual case
+            //log.Println(decryptedQuery)
+            //run dpf, xor into local db
+            for i:= 0; i < dbSize; i++ {
+                ds := int(C.db[i].dataSize)
+                dataShare := make([]byte, ds)
+                v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                for j := 0; j < ds; j++ {
+                    db[i][j] = db[i][j] ^ dataShare[j]
                 }
-                parablocker <- 1
-            }(startPoint, endPoint, vector, db)
-            startPoint = endPoint
-        }
-        for k:= 1; k <= numThreads; k++{
-            <-parablocker
-        }
-        */
-            
-        //log.Println(decryptedQuery)
-        //run dpf, xor into local db
-        for i:= 0; i < dbSize; i++ {
-            ds := int(C.db[i].dataSize)
-            dataShare := make([]byte, ds)
-            v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
-            copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
-            for j := 0; j < ds; j++ {
-                db[i][j] = db[i][j] ^ dataShare[j]
             }
+        } else { //edge case for the latency vs cores experiment
+        
+            //run dpf, xor into local db
+            //spread the eval across goroutines
+            parablocker := make(chan int)
+            startPoint := 0
+            endPoint := dbSize
+            for k:=1; k <= numCores; k++{
+                endPoint = k*dbSize/numCores
+                go func(startPoint, endPoint int, vector []byte, db [][]byte) {
+                    for i:= startPoint; i < endPoint; i++{
+                        ds := int(C.db[i].dataSize)
+                        dataShare := make([]byte, ds)
+                        v := C.evalDPF(C.ctx[id], (*C.uchar)(&decryptedQuery[0]), C.db[i].rowID, C.int(ds), (*C.uchar)(&dataShare[0]))
+                        copy(vector[i*16:(i+1)*16], C.GoBytes(unsafe.Pointer(&v), 16))
+                        for j := 0; j < ds; j++ {
+                            db[i][j] = db[i][j] ^ dataShare[j]
+                        }
+                    }
+                    parablocker <- 1
+                }(startPoint, endPoint, vector, db)
+                startPoint = endPoint
+            }
+            for k:= 1; k <= numCores; k++{
+                <-parablocker
+            }
+        
         }
+            
+
         
         
         //run audit part
