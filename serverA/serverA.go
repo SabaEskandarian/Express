@@ -26,7 +26,7 @@ import (
 )
 
 var numThreads int
-var numCores int
+var numCores int 
 
 func main() {
     auditor := "127.0.0.1:4444"
@@ -39,7 +39,7 @@ func main() {
     log.SetFlags(log.Lshortfile) 
     
     if len(os.Args) < 7 {
-        log.Println("usage: serverA [auditorip:port] [serverBip:port] [numThreads] [numCores] [numRows] [rowDataSize]")
+        log.Println("usage: serverA [auditorip:port] [serverBip:port] [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]")
         return
     } else {
         auditor = os.Args[1]
@@ -49,6 +49,13 @@ func main() {
         numRowsSetup, _ = strconv.Atoi(os.Args[5])
         dataSizeSetup, _ = strconv.Atoi(os.Args[6])
     }
+    
+    if numCores != 0 {
+        numThreads = 1
+    }
+    
+    log.Printf("running with parameters %d %d %d %d\n", numThreads, numCores, numRowsSetup, dataSizeSetup)
+
     
     C.initializeServer(C.int(numThreads))
 
@@ -75,6 +82,7 @@ func main() {
     conn.SetDeadline(time.Time{})
     addRows(1, conn)
     
+    //numRowsSetup = 10
     //server sets up a numRows rows on its own
     for i:=0; i < numRowsSetup; i++ {
         var setupRowKey [16]byte
@@ -82,8 +90,10 @@ func main() {
         if err != nil{
             log.Println("couldn't get randomness for row key!")
         }
+       // log.Printf("data size %d\n", dataSizeSetup)
         C.processnewEntry(C.int(dataSizeSetup), (*C.uchar)(&setupRowKey[0]))
     }
+    
     //no more adding rows after here
     
     var ops uint64
@@ -95,6 +105,7 @@ func main() {
     conns := make(chan net.Conn)
     for i := 0; i < numThreads; i++ {
         go leaderWorker(i, conns, blocker, blocker2, serverB, auditor, &ops)
+        <- blocker
     }
     
     go reportThroughput(&ops)    
@@ -222,13 +233,17 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
     connB, err := tls.Dial("tcp", serverB, conf)
     if err != nil {
         log.Println(err)
+        return
     }
     
     //connect to auditor
     connAudit, err := tls.Dial("tcp", auditor, conf)
     if err != nil {
         log.Println(err)
+        return
     }
+    
+    blocker <- 1
     
     for conn := range conns {
         if conn == nil {//this is a read
@@ -338,6 +353,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     count += n
                     if err != nil && err != io.EOF && count != 24+4+(int(C.layers)*2*16)+box.Overhead{
                         log.Println(err)
+                        return
                     }
                 }
                 
@@ -385,8 +401,8 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 parablocker := make(chan int)
                 startPoint := 0
                 endPoint := dbSize
-                for k:=1; k <= numThreads; k++{
-                    endPoint = k*dbSize/numThreads
+                for k:=1; k <= numCores; k++{
+                    endPoint = k*dbSize/numCores
                     go func(startPoint, endPoint int, vector []byte, db [][]byte) {
                         for i:= startPoint; i < endPoint; i++{
                             ds := int(C.db[i].dataSize)
@@ -401,7 +417,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     }(startPoint, endPoint, vector, db)
                     startPoint = endPoint
                 }
-                for k:= 1; k <= numThreads; k++{
+                for k:= 1; k <= numCores; k++{
                     <-parablocker
                 }
             }
@@ -461,6 +477,9 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
 }
 
 func handleLeaderRead(conn, connB net.Conn){
+    
+    //log.Println("server A is reading")
+    
     index:= make([]byte, 4)
     rowId:= make([]byte, 16)
     
@@ -487,6 +506,11 @@ func handleLeaderRead(conn, connB net.Conn){
         }
     }
     
+    //log.Println(index)
+    
+    //log.Println("server A is forwarding")
+
+    
     //write index 4 bytes
     n, err := connB.Write(index)
     if err != nil {
@@ -498,6 +522,8 @@ func handleLeaderRead(conn, connB net.Conn){
         log.Println(n, err)
     }
     
+        //log.Println("data forwarded")
+
     
     //get data size
     size := int(C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index))))
@@ -510,6 +536,8 @@ func handleLeaderRead(conn, connB net.Conn){
     //get data
     C.readEntry((*C.uchar)(&rowId[0]), C.int(byteToInt(index)), (*C.uchar)(&data[0]), (*C.uchar)(&seed[0]))
         
+        //log.Println("waiting on response from server B")
+    
     
     //read response from server B
     boxBSize := 24+box.Overhead+16+size
@@ -524,6 +552,9 @@ func handleLeaderRead(conn, connB net.Conn){
     }
     
     //log.Println(boxB)
+    
+    //log.Println("now going to write back to client")
+
         
     //write back seed and data
     //write server A response

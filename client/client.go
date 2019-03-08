@@ -122,6 +122,8 @@ func main() {
         msg[i] = 'a'
     }
     
+    //log.Println(latencyTest)
+    
     //begin tests
     if latencyTest == 1 {
         
@@ -175,22 +177,21 @@ func main() {
     //end measurement
     
     /*
-     * this stuff won't work with the new test setup
     //the rest is here to make sure nothing is broken
     //not important for measurement
-    rowVal := readRow(13, serverA, s2PublicKey, clientSecretKey)
-    log.Println("rowVal 13 is ")
+    rowVal := readRow(0, serverA, s2PublicKey, clientSecretKey)
+    log.Println("rowVal 0 is ")
     log.Println(string(rowVal))
     
-    writeRow(0, 13, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
+    writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 0)
     log.Println("wrote message")
     
-    rowVal = readRow(11, serverA, s2PublicKey, clientSecretKey)
-    log.Println("rowVal 11 is ")
+    rowVal = readRow(0, serverA, s2PublicKey, clientSecretKey)
+    log.Println("rowVal 0 is ")
     log.Println(string(rowVal))      
     
-    rowVal = readRow(13, serverA, s2PublicKey, clientSecretKey)
-    log.Println("rowVal 13 is ")
+    rowVal = readRow(0, serverA, s2PublicKey, clientSecretKey)
+    log.Println("rowVal 0 is ")
     log.Println(string(rowVal))
     */
     
@@ -262,7 +263,7 @@ func addRow(dataSize int, connA, connB *tls.Conn) {
     if err != nil {
         log.Println(n, err)
         return
-    }
+    } 
     
     //16 bytes key
     n, err = connA.Write(C.GoBytes(unsafe.Pointer(rowAKey), 16))
@@ -287,6 +288,7 @@ func addRow(dataSize int, connA, connB *tls.Conn) {
         if err != nil && count != 4 {
             log.Println(err)
             log.Println(n)
+            return
         }
     }
     
@@ -298,6 +300,7 @@ func addRow(dataSize int, connA, connB *tls.Conn) {
         if err != nil && count != 16 {
             log.Println(err)
             log.Println(n)
+            return
         }
     }
     
@@ -405,24 +408,6 @@ func readRow(localIndex int, serverA string, s2PublicKey, clientSecretKey *[32]b
 //this is the only function that can safely be called in parallel goroutines
 func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKey, auditorPublicKey, clientSecretKey *[32]byte, measureClient int) {
     
-    /*
-             var totalTimeWrite time.Duration
-        var totalTimeRead time.Duration
-        
-        //there's a warmup effect on the server, so drop first time
-        for i:=0; i < 11; i++{
-            //measured ops here
-            startTime := time.Now()
-
-            writeRow(0, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, 1)
-
-            elapsedTime := time.Since(startTime)
-            log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
-            if i > 0 {
-                totalTimeWrite += elapsedTime
-            }
-     */
-    
     var totalTime time.Duration
     startTime := time.Now()
     
@@ -496,10 +481,11 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     }
     
     serverBCiphertext := box.Seal(nonce[:], serverBPlaintext, &nonce, s2PublicKey, clientSecretKey)
+        
+    msg = append(msg, serverBCiphertext...)
     
     totalTime += time.Since(startTime)
-    
-    msg = append(msg, serverBCiphertext...)
+
     n, err = conn.Write(msg)
     if err != nil {
         log.Println(n, err)
@@ -514,6 +500,7 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         if err != nil && count != 20{
             log.Println(err)
             log.Println(n)
+            return
         }
     }
     
@@ -568,6 +555,7 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         if err != nil && count != 4{
             log.Println(err)
             log.Println(n)
+            return
         }
     }
     

@@ -12,8 +12,8 @@
 
 //defining these here
 //so they don't have to be repeated across okv and okvClient
-#define MAX_LAYERS 20
-#define MAX_DB_SIZE 1000000
+#define MAX_LAYERS 21
+#define MAX_DB_SIZE 1000010
 #define MAX_DATA_SIZE 10000000
 #define MAX_THREADS 1024
 

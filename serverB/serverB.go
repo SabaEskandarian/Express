@@ -37,7 +37,7 @@ func main() {
     log.SetFlags(log.Lshortfile) 
     
     if len(os.Args) < 5 {
-        log.Println("usage: serverB [numThreads] [numCores] [numRows] [rowDataSize]")
+        log.Println("usage: serverB [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]")
         return
     } else {
         numThreads, _ = strconv.Atoi(os.Args[1])
@@ -45,6 +45,12 @@ func main() {
         numRowsSetup, _ = strconv.Atoi(os.Args[3])
         dataSizeSetup, _ = strconv.Atoi(os.Args[4])
     }
+    
+    if numCores != 0 {
+        numThreads = 1
+    }
+    
+    log.Printf("running with parameters %d %d %d %d\n", numThreads, numCores, numRowsSetup, dataSizeSetup)
     
     C.initializeServer(C.int(numThreads))
 
@@ -94,13 +100,16 @@ func main() {
     conn.SetDeadline(time.Time{})
     addRows(0, conn)
     
+    //numRowsSetup = 10
     //server sets up a numRows rows on its own
     for i:=0; i < numRowsSetup; i++ {
         var setupRowKey [16]byte
         _, err = rand.Read(setupRowKey[:])
-        if err != nil{
+        if err != nil{ 
             log.Println("couldn't get randomness for row key!")
         }
+        //log.Println(i)
+        //log.Printf("data size %d\n", dataSizeSetup)
         C.processnewEntry(C.int(dataSizeSetup), (*C.uchar)(&setupRowKey[0]))
     }
     //no more adding rows after here
@@ -112,6 +121,7 @@ func main() {
         if err != nil {
             log.Println(err)
         }
+        //log.Println("1 connection from server A")
         conn.SetDeadline(time.Time{})
         go worker(i, conn, m, clientPublicKey, auditorSharedKey, s2SecretKey)
     }
@@ -126,13 +136,19 @@ func main() {
             //continue
         }
         conn.SetDeadline(time.Time{})
+        //log.Println("got a connection")
         
-        connType := make([]byte, 1)  
-        n, err:= conn.Read(connType)
-        if err != nil && n != 1 {
-            log.Println(err)
-            log.Println(n)
-        }
+        connType := make([]byte, 1)
+            for count:= 0; count < 1; {
+                n, err := conn.Read(connType)
+                count += n
+                if err != nil && n != 1 {
+                    log.Println(n, err)
+                    return
+                }
+            }
+         
+        //log.Printf("read byte %d\n", connType[0])
         
         if connType[0] == 1 { //writeHappened == true
             //run rerandomization
@@ -261,7 +277,7 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
                 }
             }
         } else { //edge case for the latency vs cores experiment
-        
+            
             //run dpf, xor into local db
             //spread the eval across goroutines
             parablocker := make(chan int)
@@ -286,12 +302,9 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
             for k:= 1; k <= numCores; k++{
                 <-parablocker
             }
-        
         }
-            
 
-        
-        
+
         //run audit part
         C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
         
@@ -314,6 +327,8 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
 func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     index:= make([]byte, 4)
     rowId:= make([]byte, 16)
+    
+    //log.Println("server B is reading")
     
     //read index and rowId
     count := 0
@@ -338,8 +353,11 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
         }
     }
     
+    //log.Println("done reading")
+    
     
     //get data size
+    log.Println(C.int(byteToInt(index)))
     size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
         
     //make space for responses
@@ -364,6 +382,8 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     
     readCiphertext := box.Seal(nonce[:], readPlaintext, &nonce, clientPublicKey, s2SecretKey)
     //log.Println(readCiphertext)
+    
+    //log.Println("now sending back data to server A")
         
     //send boxed message to server A
     n, err := conn.Write(readCiphertext)

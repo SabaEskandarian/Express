@@ -77,6 +77,7 @@ int processnewEntry(int dataSize, uint8_t *rowKey){
     
     //print_block(realRowId);
     //printf("\n");
+    //printf("data size: %d\n", dataSize);
     
     //check if rowId is taken in db and return 1 if that happens
     //we would need a second counter to handle this in reality
