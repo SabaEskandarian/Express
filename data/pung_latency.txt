@@ -1,3 +1,38 @@
+100kb messages
+low-latency
+
+1000 rows
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 100064 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 1272022 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 32000 bytes
+Upload (pir) 1064992 bytes
+Download (pir) 5128200 bytes
+retr (1 msgs): 678135 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 2259465 usec
+
+10000 rows
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 100064 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 15572695 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 320000 bytes
+Upload (pir) 3276832 bytes
+Download (pir) 5685256 bytes
+retr (1 msgs): 3346607 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 19294242 usec
+
+
+
+
+
 256 byte messages
 
 ./target/release/server -i 10.138.0.2 --port 4444 -m 1 -d 2 -b 99
