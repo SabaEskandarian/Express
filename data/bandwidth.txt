@@ -19,9 +19,11 @@ Our bandwidth numbers
 formulas
 auditRecv = 88 + 81* log_2(dbSize)
 auditSend = 1
-serverAWriteRecv = 134+49*log_2(dbSize)+2*msgSize
-serverAWriteSend = 160+81*log_2(dbSize)+msgSize
-serverAWriteTotal = 294+ 130*log_2(dbSize)+3*msgSize
+
+querysize = 1 + 16 + 1 + 18 * 128 + msgSize
+
+serverAWriteTotal = 7276 + 3*msgSize + 130*log_2(dbSize)
+
 serverAReadRecv = 77+msgSize
 serverAReadSend = 97+2*msgSize
 ClientTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
