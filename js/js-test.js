@@ -1,5 +1,11 @@
 document.write('hello, ');
-runTest();
+//import nacl = require("tweetnacl") // cryptographic functions
+//import util = require("tweetnacl-util") // encoding & decoding 
+const keypair = nacl.box.keyPair()
+const receiverPublicKey = nacl.util.encodeBase64(keypair.publicKey)
+const keypair2 = nacl.box.keyPair()
+const receiverPublicKey2 = nacl.util.encodeBase64(keypair2.publicKey)
+runTest(receiverPublicKey, receiverPublicKey2);
 
 //using SJCL crypto library
 
@@ -14,27 +20,31 @@ runTest();
 /*
  * this is meant as a test of the performance of the primitives if they were to 
  * be run inside of a browser and is not meant to be fully correct or compatible
- * with the rest of the system built and tested as part of this project
+ * with the rest of the system built and tested as part of this project.
+ * It probably contains many, many bugs (even more than the other part).
  */
-function runTest(){
+function runTest(receiver1pk, receiver2pk){
     t0 = performance.now();
 
-    var dbSize = 1000;
-    
+    var dbLayers = 10;
+
     rb = randomBlock(32);
     seed = rb.slice(0,16);
     ctx = initCipher(rb.slice(16,32));
     
-    dpfKeys = genDPF(/**/);
+    dpfKeys = genDPF(ctx);
+    //see function code for all assumptions we make to make things easier
+    //none of this matters for security since the browser is just sending dummy messages
+    //and doesn't need full functionality to send real messages
     
-    //encrypt dpfKeys 2nd part
+    server2msg = encrypt(receiver1pk, JSON.stringify(dpfKeys['k1']));
     
-    shareA = evalDPF(/**/);
-    shareB = evalDPF(/**/);
+    shareA = evalDPF(ctx, dpfKeys['k0']);
+    shareB = evalDPF(ctx, dpfKeys['k1']);
     
-    auditOut = auditDPF();
+    auditOut = auditDPF(ctx, seed, shareA, shareB, dbLayers);
     
-    //encrypt auditOut
+    auditormsg = encrypt(receiver2pk, JSON.stringify(auditOut));
 
     t1 = performance.now();
     document.write("the operation took "+(t1-t0)+"ms");
@@ -49,13 +59,6 @@ function encryptBlock(ctx, plaintext) {
   const bitarrayPT = sjcl.codec.bytes.toBits(plaintext);
   const c = ctx.encrypt(bitarrayPT);
   return sjcl.codec.bytes.fromBits(c);
-}
-
-//probably don't need this one
-function decryptBlock(ctx, ciphertext) {
-  const c = sjcl.codec.bytes.toBits(ciphertext);
-  const bitarrayPT = ctx.decrypt(c);
-  return sjcl.codec.bytes.fromBits(bitarrayPT);
 }
 
 function randomBlock(len) {
@@ -103,6 +106,8 @@ function dpfPRG(ctx, input, output1, output2, bit1, bit2) {
     
     returnBlob['output1'][0] = dpf_set_lsb_zero(returnBlob['output1'][0]);
     returnBlob['output2'][0] = dpf_set_lsb_zero(returnBlob['output2'][0]);
+    
+    return returnBlob;
 }
 
 function getbit(input, i){
@@ -130,27 +135,71 @@ function auditPRF(ctx, input, layer, count) {
     return output;
 }
 
-function genDPF() {
+function genDPF(ctx) {
+    //index is 128 bits in an array of bytes
+    //data is an array of bytes
+    
+    //assume domainSize is 128 dataSize is 1024, index is all 0s, data is all 'a'
+    
+    returnBlob = {};
+    returnBlob['k0'] = [];
+    returnBlob['k1'] = [];
+    
+    maxLayer = domainSize;
     
 }
 
-function evalDPF() {
+function evalDPF(ctx, dpfKey) {
     
 }
 
-function toBigInt(input) {
-    //input is a 16-byte array
-    //output should be  BigInt representation
-    
+function toBigNum(input) {
+    //convert an array of 16 bytes to a Big Num
+    bigVal = 0n;
+    shift = 1n;
+    for(i = 0; i < 16; i++){
+        bigVal = bigVal + (BigInt(input[i]) * shift);
+        shift = shift * 256n;
+    }
 }
 
-function fromBigInt(input) {
-    //input is a BigInt
-    //output should be a 16-byte array
+function bigIntOps(aShare, bShare, m, p) {
+//take in bignums
+//subtract bShare from aShare, multiply the result by m, all mod p=2^128-159
+//return an array of bytes
+    val = (aShare - bShare) % p;
+    val = (val * m) % p;
     
-    
+    //convert back to byte array
+    retArray = [];
+    shift = 1n;
+    for(i = 0; i < 16; i++){
+        tempVal = (val/shift) % 256n;
+        retArray.push(BigInt.asUintN(tempVal));
+        shift = shift * 256n;
+    }
+    return retArray;
 }
 
-function auditDPF() {
+function auditDPF(ctx, seed, shareA, shareB, dbLayers) {
+    returnBlob = {};
+    returnBlob['vals'] = [];
+    returnBlob['bits'] = [];
+    //since index is hard-coded to 0, bits will be an entirely random vector
+    //so we can do it in one shot
+    bitsVector = auditPRF(ctx, seed, 0, -1);
     
+    aShare = toBigNum(shareA);
+    bShare = toBigNum(shareB);
+    
+    p = 2n ** 128n - 159n;
+    
+    for(i = 0; i < dbLayers; i++){
+        returnBlob['bits'].push(getbit(bitsVector, i));
+
+        m = toBigNum(auditPRF(ctx, seed, i, 0));
+        returnBlob['vals'].push(bigIntOps(aShare, bShare, m, p));
+    }
+    
+    return returnBlob;
 }
