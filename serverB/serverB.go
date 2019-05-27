@@ -357,7 +357,7 @@ func handleRead(conn net.Conn, clientPublicKey, s2SecretKey *[32]byte){
     
     
     //get data size
-    log.Println(C.int(byteToInt(index)))
+    //log.Println(C.int(byteToInt(index)))
     size := C.getEntrySize((*C.uchar)(&rowId[0]), C.int(byteToInt(index)))
         
     //make space for responses
