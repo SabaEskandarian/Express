@@ -53,6 +53,12 @@ func main() {
         latencyTest = 0
     }
     
+    
+    //if two words are added after the command, do the "web browser" mode writing test
+    if len(os.Args) > 6 {
+        latencyTest = -1
+    }
+    
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
@@ -95,7 +101,7 @@ func main() {
     }
     //use the connections set up at the beginning to add a bunch of rows really fast
     for i:= 0; i < rowsCreated; i++ {
-        addRow(dataLen, connA, connB) 
+        addRow(dataLen, connA, connB)
         //if i % 10000 == 0 && i != 0 {
         //    log.Println("added 10000 rows")
         //}
@@ -158,7 +164,39 @@ func main() {
         log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
         log.Printf("average read operation time (dataLen %d): %s\n", dataLen, totalTimeRead/10)
         
+    } else if latencyTest == -1 { //part of "web browsing" stuff
+        
+        log.Printf("doing the web browsing experiment")
+        
+        var totalTimeWrite time.Duration
+        
+        blocker := make(chan int)
+        
+        //there's a warmup effect on the server, so drop first time
+        for i := 0; i < 11; i++ {
+            
+            startTime := time.Now()
+
+            for j := 0; j < numThreads; j++ {
+                go throughputWriter(j, 1, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, blocker)
+            }
+            
+            for j := 0; j < numThreads; j++ {
+                <- blocker
+            }
+            
+            elapsedTime := time.Since(startTime)
+            
+            log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
+            if i > 0 {
+                totalTimeWrite += elapsedTime
+            }
+
+        }
+        log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
+
     } else { //throughput test
+        
         maxOps := 10000 //number of times each thread will write
         blocker := make(chan int)
 
