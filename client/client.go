@@ -169,6 +169,7 @@ func main() {
         log.Printf("doing the web browsing experiment")
         
         var totalTimeWrite time.Duration
+        var totalTimeRead time.Duration
         
         blocker := make(chan int)
         
@@ -191,9 +192,28 @@ func main() {
             if i > 0 {
                 totalTimeWrite += elapsedTime
             }
+            
+            //measured ops here
+            startTime = time.Now()
+            
+            //doing the reads here instead of the smaller mailbox size instance.
+            //this will be strictly worse than the other way around
+            //could also be better if I had parallelized reads on the server side
+            //but I don't think I'll have time to make the changes there
+            for j := 0; j < numThreads; j++ {
+                readRow(0, serverA, s2PublicKey, clientSecretKey)
+            }
+            
+            elapsedTime = time.Since(startTime)
+            log.Printf("read operation time (dataLen %d): %s\n", dataLen, elapsedTime)
+            if i > 0 {
+                totalTimeRead += elapsedTime
+            }
 
         }
         log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
+        log.Printf("average read operation time (dataLen %d): %s\n", dataLen, totalTimeRead/10)
+
 
     } else { //throughput test
         

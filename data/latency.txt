@@ -107,3 +107,12 @@ client.go:157: average read operation time (dataLen 10000): 1.267020876s
 dbSize 1000000, dataSize 10000
 client.go:156: average write operation time (dataLen 10000): 36.688860783s
 client.go:157: average read operation time (dataLen 10000): 11.98065076s
+
+
+--------------------------------------------------------
+web browser experiment
+20kb mailboxes
+
+1000 mailboxes, 100 writes
+2.274133387s
+
