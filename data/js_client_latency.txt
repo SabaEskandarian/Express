@@ -16,3 +16,23 @@ avg = 56ms
 dbsize 1000000 dblayers 20
 51.3, 54.0, 57.2, 57.3, 54.6, 50.8, 60.6, 51.4, 55.2, 51.7
 avg = 54.4ms
+
+our total script + html + libraries size: 70.8KB
+
+https://www.nytimes.com/
+69 requests
+4.9MB / 63 KB transferred
+DOMContentLoaded: 340ms
+load: 5.4 s
+
+https://www.washingtonpost.com
+102 requests
+9.1 MB / 2.87 MB transferred
+DOMContentLoaded: 274ms
+load: 3.36 s
+
+https://www.wsj.com/
+117 requests
+8.2 MB / 262 KB transferred
+DOMContentLoaded: 1.7 s
+load: 2.2 s
