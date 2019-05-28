@@ -26,9 +26,23 @@ serverAWriteTotal = 7276 + 3*msgSize + 130*log_2(dbSize)
 
 serverAReadRecv = 77+msgSize
 serverAReadSend = 97+2*msgSize
-ClientTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
+ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
 
 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576
+
+
+-------
+for web browsing application
+
+comparison baseline is 20kb per web site, go from 50 to 400 sites
+
+for us it's one client write of 1kb and one read of 20kb
+
+ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)= 44,757 + 17*log_2(dbSize)
+client read (bytes): 95 + 2*msgsize = 95 + 2*20,000 = 40, 095
+total: 84,852 + 17*log_2(dbSize)
+
+------
 
 
 set msgSize = 160 for comparison with Riposte

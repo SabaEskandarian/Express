@@ -111,8 +111,124 @@ client.go:157: average read operation time (dataLen 10000): 11.98065076s
 
 --------------------------------------------------------
 web browser experiment
+
+
+Total latency (1kb read, + many 1kb reads, +many 20kb writes, +20kb read)
+
+500 mailboxes, 50 sites
+3.206s
+
+1000 mailboxes, 100 sites
+6.305s
+
+1500 mailboxes, 150 sites
+9.508s
+
+2000, 200 
+12.847s
+
+2500, 250 
+17.206s
+
+3000, 300 
+21.957s
+
+3500, 350 
+28.683s
+
+4000, 400 
+34.03s
+
+
+1kb mailboxes
+
+dbSize 500 
+client.go:164: average write operation time (dataLen 1000): 28.081471ms
+
+dbsize 1000 
+client.go:164: average write operation time (dataLen 1000): 33.694495ms
+
+dbsize 1500 
+client.go:164: average write operation time (dataLen 1000): 40.414773ms
+
+dbsize 2000
+client.go:164: average write operation time (dataLen 1000): 44.221033ms
+
+dbsize 2500 
+client.go:164: average write operation time (dataLen 1000): 49.364511ms
+
+dbsize 3000 
+client.go:164: average write operation time (dataLen 1000): 64.02321ms
+
+dbsize 3500 
+client.go:164: average write operation time (dataLen 1000): 68.094855ms
+
+dbsize 4000 
+client.go:164: average write operation time (dataLen 1000): 73.485629ms
+
+
+
 20kb mailboxes
 
-1000 mailboxes, 100 writes
-2.274133387s
+dbSize 500, dataSize 20000
+client.go:165: average read operation time (dataLen 20000): 58.828234ms
+
+dbSize 1000, dataSize 20000
+client.go:165: average read operation time (dataLen 20000): 72.380295ms
+
+dbSize 1500, dataSize 20000
+client.go:165: average read operation time (dataLen 20000): 87.783446ms
+
+dbsize 2000
+client.go:165: average read operation time (dataLen 20000): 101.140348ms
+
+dbsize 2500
+client.go:165: average read operation time (dataLen 20000): 115.101492ms
+
+dbsize 3000
+client.go:165: average read operation time (dataLen 20000): 132.504002ms
+
+dbsize 3500
+client.go:165: average read operation time (dataLen 20000): 145.665355ms
+
+dbsize 4000
+client.go:165: average read operation time (dataLen 20000): 164.802252ms
+
+
+
+500 mailboxes, 50 writes/reads 
+client.go:214: average write operation time (dataLen 20000): 1.0915262s
+client.go:215: average read operation time (dataLen 20000): 2.026777555s
+
+1000 mailboxes, 100 writes/reads
+client.go:214: average write operation time (dataLen 20000): 2.224122935s
+client.go:215: average read operation time (dataLen 20000): 3.975032965s
+
+1500, 150 
+client.go:214: average write operation time (dataLen 20000): 3.428557138s
+client.go:215: average read operation time (dataLen 20000): 5.951098131s
+
+2000, 200
+client.go:214: average write operation time (dataLen 20000): 4.815371171s
+client.go:215: average read operation time (dataLen 20000): 7.887123841s
+
+2500, 250 
+client.go:214: average write operation time (dataLen 20000): 7.160770181s
+client.go:215: average read operation time (dataLen 20000): 9.929977244s
+
+3000, 300
+client.go:214: average write operation time (dataLen 20000): 9.81931203s
+client.go:215: average read operation time (dataLen 20000): 11.94119135s
+
+3500, 350 
+client.go:214: average write operation time (dataLen 20000): 14.633886617s
+client.go:215: average read operation time (dataLen 20000): 13.834598453s
+
+4000, 400
+client.go:214: average write operation time (dataLen 20000): 17.963586
+client.go:215: average read operation time (dataLen 20000): 15.828076
+
+4500, 450 
+started getting connections dropped, could probably get around this by not sending them all at once
+
 
