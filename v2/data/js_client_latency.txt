@@ -1,0 +1,38 @@
+latency of client js computation on my laptop, Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz, 4GB RAM
+times are measured in milliseconds on Chromium version Chromium 72.0.3626.121 Arch Linux
+
+dbsize 100 dblayers 7
+64.8, 50.1, 56.9, 57.9, 53.9, 52.7, 50.7, 47.6, 45.3, 57.0
+avg = 53.7ms
+dbsize 1000 dblayers 10
+55.0, 55.8, 57.0, 51.2, 54.4, 54.0, 48.9, 53.4, 62.6, 51.6
+avg = 54.4ms
+dbsize 10000 dblayers 14
+57.2, 62.0, 56.4, 55.7, 61.9, 48.6, 53.8, 62.7, 57.0, 57.4
+avg = 57.3ms
+dbsize 100000 dblayers 17
+58.4, 57.8, 50.5, 55.3, 56.4, 59.0, 56.3, 53.9, 56.2, 56.4
+avg = 56ms
+dbsize 1000000 dblayers 20
+51.3, 54.0, 57.2, 57.3, 54.6, 50.8, 60.6, 51.4, 55.2, 51.7
+avg = 54.4ms
+
+our total script + html + libraries size: 70.8KB
+
+https://www.nytimes.com/
+69 requests
+4.9MB / 63 KB transferred
+DOMContentLoaded: 340ms
+load: 5.4 s
+
+https://www.washingtonpost.com
+102 requests
+9.1 MB / 2.87 MB transferred
+DOMContentLoaded: 274ms
+load: 3.36 s
+
+https://www.wsj.com/
+117 requests
+8.2 MB / 262 KB transferred
+DOMContentLoaded: 1.7 s
+load: 2.2 s

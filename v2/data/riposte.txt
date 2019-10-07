@@ -1,0 +1,64 @@
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 0
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 1
+./server -servers 10.142.0.2:9090,10.142.0.3:9091,10.128.0.2:9092 -idx 2
+./client -leader 10.142.0.2:9090 -threads 16 -hammer
+
+
+experiments with client and auditor on east coast, server 1 on west coast, and server 2 central
+
+256 bytes message
+1000 rows
+29 queries/sec
+10000 rows
+27 queries/sec
+100000 rows
+8.3 queries/sec
+200000 rows
+5.0 queries/sec
+300000 rows
+3.5 queries/sec
+400000 rows
+2.2 queries/sec
+500000 rows
+2.2 queries/sec
+
+1KB message
+1000 rows
+16 queries/sec
+10,000 rows 
+5.8 queries/sec
+100,000 rows 
+1.2 queries/sec
+200,000 rows
+.7 queries/sec
+300,000 rows
+.6 queries/sec
+400,000 rows
+.5 queries/sec
+500,000 rows
+.3 queries/sec
+
+_______________________________________
+repeat with all servers in the same data center (east)
+
+1KB message
+1000 rows
+38 queries/sec
+10,000 rows 
+10 queries/sec
+25,000 rows
+5 queries/sec
+50,000 rows
+3.4 queries/sec
+75,000 rows
+2.5 queries/sec
+100,000 rows 
+2.0 queries/sec
+200,000 rows
+1.2 queries/sec
+300,000 rows
+.9 queries/sec
+400,000 rows
+.7 queries/sec
+500,000 rows
+.6 queries/sec

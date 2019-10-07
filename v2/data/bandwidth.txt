@@ -1,0 +1,180 @@
+Riposte bandwidth numbers for "160 byte" messages (actually a little less but whatever, just looks better for them)
+
+Width Height  Total ClientRead  ClientWrite Server0Read Server0Write
+Server1Read Server1Write  AuditRead AuditWrite
+8 8 64  120 5126  10060 8337  2846  975 1553  141
+16  16  256 120 9494  17427 13931 5032  1383  2370  141
+32  32  1024  120 17925 31677 24756 9243  2187  3969  141
+64  64  4096  120 34751 60117 46386 17655 3783  7169  141
+128 128 16384 120 68960 117918  90323 34756 7024  13654 141
+256 256 65536 120 136897  232364  177073  68729 13299 26197 141
+512 512 262144  120 273658  463212  352384  137105  26153 51899 141
+1024  1024  1048576 120 545761  922746  701568  273159  51837 103282  141
+2048  2048  4194304 120 1091125 1843028 1400289 545843  102954  205518  141
+4096  4096  16777216  120 2178567 3678500 2794198 1089569 205115  409832
+  141
+  
+
+Our bandwidth numbers
+formulas
+auditRecv = 88 + 81* log_2(dbSize)
+auditSend = 1
+
+querysize = 1 + 16 + 1 + 18 * 128 + msgSize
+
+serverAWriteTotal = 7276 + 3*msgSize + 130*log_2(dbSize)
+
+serverAReadRecv = 77+msgSize
+serverAReadSend = 97+2*msgSize
+ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
+
+64, 256, 1024, 4096, 16384, 65536, 262144, 1048576
+
+
+-------
+for web browsing application
+
+comparison baseline is 20kb per web site, go from 50 to 400 sites
+
+for us it's one client write of 1kb and one read of 20kb
+
+ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)= 44,757 + 17*log_2(dbSize)
+client read (bytes): 95 + 2*msgsize = 95 + 2*20,000 = 40, 095
+total: 84,852 + 17*log_2(dbSize)
+
+------
+
+
+set msgSize = 160 for comparison with Riposte
+
+Pung
+(get numbers for other sizes from pung_latency.txt)
+These numbers taken with instance 1 and instance 2 in the same zone (east)
+but amount of data transferred should be the same regardless of where the servers are
+
+64
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 63
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 115948 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 2048 bytes
+Upload (pir) 98336 bytes
+Download (pir) 114696 bytes
+retr (1 msgs): 48832 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 164798 usec
+
+256
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 255
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 87981 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 8192 bytes
+Upload (pir) 196640 bytes
+Download (pir) 114696 bytes
+retr (1 msgs): 55129 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 143132 usec
+
+1024
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 1023
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 93929 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 32768 bytes
+Upload (pir) 393248 bytes
+Download (pir) 114696 bytes
+retr (1 msgs): 63801 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 157751 usec
+
+4096
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 4095
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 100015 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 131072 bytes
+Upload (pir) 393248 bytes
+Download (pir) 344072 bytes
+retr (1 msgs): 76654 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 176699 usec
+
+16384
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 16383
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 128108 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 524288 bytes
+Upload (pir) 786464 bytes
+Download (pir) 360456 bytes
+retr (1 msgs): 62037 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 190170 usec
+
+65536
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 65535
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 252068 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 2097152 bytes
+Upload (pir) 1048608 bytes
+Download (pir) 704520 bytes
+retr (1 msgs): 120744 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 372843 usec
+
+262144
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 262143
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 868072 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 8388608 bytes
+Upload (pir) 2097184 bytes
+Download (pir) 868360 bytes
+retr (1 msgs): 363722 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 1231827 usec
+
+1048576
+./target/release/server -i 10.142.0.3 --port 4444 -m 1 -d 2 -b 1048575
+./target/release/client -h 10.142.0.3:4444 -r 1 -n saba -p saba -x secret -d 2
+0 - Registered with Pung server
+0 - Synchronizing with the Pung server
+Upload (send rpc) 224 bytes
+Download (send rpc) 8 bytes
+send (1 msgs): 3497360 usec
+Upload (explicit label rpc) 8 bytes
+Download (explicit label rpc) 33554432 bytes
+Upload (pir) 4194336 bytes
+Download (pir) 868360 bytes
+retr (1 msgs): 1116262 usec
+0 - Retrieved msg is msg #0 from 0
+processed 1 rounds in 4613662 usec

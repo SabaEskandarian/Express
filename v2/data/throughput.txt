@@ -1,0 +1,111 @@
+sample commands
+./auditor
+./serverB 32 16 9999 256
+./serverA 10.142.0.3:4444 10.128.0.2:4442 32 16 9999 256
+./client 10.138.0.2:4443 10.128.0.2:4442 128 256 throughput
+
+256 bytes message
+1000 rows
+5.9 queries/sec
+10000 rows
+6.0 queries/sec
+100000 rows
+5.7 queries/sec
+200000 rows
+4.7 queries/sec
+300000 rows
+3.0 queries/sec
+400000 rows
+2.4 queries/sec
+500000 rows
+1.9 queries/sec
+
+1KB message
+1000 rows
+6.1 queries/sec
+10,000 rows 
+6.0 queries/sec
+100,000 rows 
+5.8 queries/sec
+200,000 rows
+3.9 queries/sec
+300,000 rows
+2.6 queries/sec
+400,000 rows
+1.7 queries/sec
+500,000 rows
+1.6 queries/sec
+
+_______________________
+repeat with all servers in same datacenter
+
+1KB message
+1000 rows
+48 queries/sec
+10,000 rows 
+46 queries/sec
+25,000 rows
+28.9 queries/sec
+50,000 rows
+15.8 queries/sec
+75,000 rows
+10.5 queries/sec
+100,000 rows 
+8.0 queries/sec
+200,000 rows
+4.1 queries/sec
+300,000 rows
+2.7 queries/sec
+400,000 rows
+2.1 queries/sec
+500,000 rows
+1.6 queries/sec
+
+
+20KB message
+1,000 rows
+43.93 queries/sec
+2,000 rows
+41.5 queries/sec
+3,000 rows
+30.55 queries/sec
+4,000 rows
+23.9 queries/sec
+5,000 rows
+20.15 queries/sec
+6,000 rows
+17.04 queries/sec
+7,000 rows
+15.03 queries/sec
+8,000 rows
+13.39 queries/sec
+9,000 rows
+11.88 queries/sec
+10,000 rows
+9.65 queries/sec
+20,000 rows
+5.55 queries/sec
+30,000 rows
+3.70 queries/sec
+40,000 rows
+2.78 queries/sec
+50,000 rows
+2.27 queries/sec
+60,000 rows
+1.83 queries/sec
+70,000 rows
+1.63 queries/sec
+80,000 rows
+1.44 queries/sec
+90,000 rows
+1.32 queries/sec
+100,000 rows
+1.14 queries/sec
+200,000 rows
+.57 queries/sec
+300,000 rows
+.38 queries/sec
+400,000 rows
+.28 queries/sec
+500,000 rows
+.23 queries/sec
