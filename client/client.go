@@ -54,11 +54,6 @@ func main() {
     }
     
     
-    //if two words are added after the command, do the "web browser" mode writing test
-    if len(os.Args) > 6 {
-        latencyTest = -1
-    }
-    
     conf := &tls.Config{
          InsecureSkipVerify: true,
     }
@@ -164,57 +159,6 @@ func main() {
         log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
         log.Printf("average read operation time (dataLen %d): %s\n", dataLen, totalTimeRead/10)
         
-    } else if latencyTest == -1 { //part of "web browsing" stuff
-        
-        log.Printf("doing the web browsing experiment")
-        
-        var totalTimeWrite time.Duration
-        var totalTimeRead time.Duration
-        
-        blocker := make(chan int)
-        
-        //there's a warmup effect on the server, so drop first time
-        for i := 0; i < 11; i++ {
-            
-            startTime := time.Now()
-
-            for j := 0; j < numThreads; j++ {
-                go throughputWriter(j, 1, 0, msg, serverA, s2PublicKey, auditorPublicKey, clientSecretKey, blocker)
-            }
-            
-            for j := 0; j < numThreads; j++ {
-                <- blocker
-            }
-            
-            elapsedTime := time.Since(startTime)
-            
-            log.Printf("write operation time (dataLen %d): %s\n", dataLen, elapsedTime)
-            if i > 0 {
-                totalTimeWrite += elapsedTime
-            }
-            
-            //measured ops here
-            startTime = time.Now()
-            
-            //doing the reads here instead of the smaller mailbox size instance.
-            //this will be strictly worse than the other way around
-            //could also be better if I had parallelized reads on the server side
-            //but I don't think I'll have time to make the changes there
-            for j := 0; j < numThreads; j++ {
-                readRow(0, serverA, s2PublicKey, clientSecretKey)
-            }
-            
-            elapsedTime = time.Since(startTime)
-            log.Printf("read operation time (dataLen %d): %s\n", dataLen, elapsedTime)
-            if i > 0 {
-                totalTimeRead += elapsedTime
-            }
-
-        }
-        log.Printf("average write operation time (dataLen %d): %s\n", dataLen, totalTimeWrite/10)
-        log.Printf("average read operation time (dataLen %d): %s\n", dataLen, totalTimeRead/10)
-
-
     } else { //throughput test
         
         maxOps := 10000 //number of times each thread will write
@@ -566,14 +510,16 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     seed := retA[:16]
     layers := retA[16:20]
+
+//TODO change the auditing flow from here onward.
     
     //prepare message for auditor, box it, and send to server A
     //prepare the auditor message
     
-    userBits := (*C.uchar)(C.malloc(C.ulong(byteToInt(layers))))
-    nonZeroVectors := (*C.uchar)(C.malloc(C.ulong(16*byteToInt(layers))))
+    //userBits := (*C.uchar)(C.malloc(C.ulong(byteToInt(layers))))
+    //nonZeroVectors := (*C.uchar)(C.malloc(C.ulong(16*byteToInt(layers))))
     
-    C.prepAudit(C.int(threadNum), C.int(localIndex), C.int(byteToInt(layers)), (*C.uchar)(&seed[0]), userBits, nonZeroVectors, dpfQueryA, dpfQueryB)
+    //C.prepAudit(C.int(threadNum), C.int(localIndex), C.int(byteToInt(layers)), (*C.uchar)(&seed[0]), userBits, nonZeroVectors, dpfQueryA, dpfQueryB)
     
     
     //box message to auditor
@@ -584,10 +530,16 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         log.Println("couldn't get randomness for nonce!")
     }
     
-    auditPlaintext := append(C.GoBytes(unsafe.Pointer(userBits), C.int(byteToInt(layers))), C.GoBytes(unsafe.Pointer(nonZeroVectors), C.int(byteToInt(layers)*16))...)
+    //placeholders
+    auditPlaintextA := make([]byte, 4)
+
+    auditPlaintextB := make([]byte, 4) //append(C.GoBytes(unsafe.Pointer(userBits), C.int(byteToInt(layers))), C.GoBytes(unsafe.Pointer(nonZeroVectors), C.int(byteToInt(layers)*16))...)
     
-    auditCiphertext := box.Seal(nonce[:], auditPlaintext, &nonce, auditorPublicKey, clientSecretKey)
     
+    s2AuditCiphertext := box.Seal(nonce[:], auditPlaintextB, &nonce, s2PublicKey, clientSecretKey)
+    
+    msg = append(auditPlaintextA, s2AuditCiphertext)
+
     totalTime += time.Since(startTime)
     
     //send boxed audit message to server A
@@ -599,12 +551,14 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     startTime = time.Now()
     
-    C.free(unsafe.Pointer(userBits))
-    C.free(unsafe.Pointer(nonZeroVectors))
+    //these may go away once the audit stuff changes
+    //C.free(unsafe.Pointer(userBits))
+    //C.free(unsafe.Pointer(nonZeroVectors))
     C.free(unsafe.Pointer(dpfQueryA))
     C.free(unsafe.Pointer(dpfQueryB))
     
     totalTime += time.Since(startTime)
+//TODO auditing stuff ends here
     
     done := make([]byte, 4)
     for count := 0; count < 4; {

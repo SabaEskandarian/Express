@@ -29,7 +29,6 @@ var numThreads int
 var numCores int 
 
 func main() {
-    auditor := "127.0.0.1:4444"
     serverB := "127.0.0.1:4442"
     numCores = 0
     numThreads = 16
@@ -39,15 +38,14 @@ func main() {
     log.SetFlags(log.Lshortfile) 
     
     if len(os.Args) < 7 {
-        log.Println("usage: serverA [auditorip:port] [serverBip:port] [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]")
+        log.Println("usage: serverA [serverBip:port] [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]")
         return
     } else {
-        auditor = os.Args[1]
-        serverB = os.Args[2]
-        numThreads, _ = strconv.Atoi(os.Args[3])
-        numCores, _ = strconv.Atoi(os.Args[4])
-        numRowsSetup, _ = strconv.Atoi(os.Args[5])
-        dataSizeSetup, _ = strconv.Atoi(os.Args[6])
+        serverB = os.Args[1]
+        numThreads, _ = strconv.Atoi(os.Args[2])
+        numCores, _ = strconv.Atoi(os.Args[3])
+        numRowsSetup, _ = strconv.Atoi(os.Args[4])
+        dataSizeSetup, _ = strconv.Atoi(os.Args[5])
     }
     
     if numCores != 0 {
@@ -224,20 +222,13 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
     writeHappened := false
     
     
-    //set up connections to server B and auditor
+    //set up connection to server B
     conf := &tls.Config{
         InsecureSkipVerify: true,
     }
     
     //connect to server B
     connB, err := tls.Dial("tcp", serverB, conf)
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    
-    //connect to auditor
-    connAudit, err := tls.Dial("tcp", auditor, conf)
     if err != nil {
         log.Println(err)
         return
@@ -359,7 +350,7 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 
                 blockS2 <- 1
             }()
-            
+     
             go func(){
                 //send seed and layers to client
                 n, err:=conn.Write(append(seed[:], intToByte(int(C.layers))...))

@@ -70,7 +70,7 @@ func main() {
     
     //using a deterministic source of randomness for testing
     //this is just for testing so the different parties share a key
-    //in reality the public keys of the servers/auditors should be known 
+    //in reality the public keys of the servers should be known 
     //ahead of time and those would be used
     clientPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("c",10000)))
     if err != nil {
@@ -82,15 +82,7 @@ func main() {
         log.Println(err)
         return
     }
-    auditorPublicKey, _, err := box.GenerateKey(strings.NewReader(strings.Repeat("a",10000)))
-    if err != nil {
-        log.Println(err)
-        return
-    }
-    
-    auditorSharedKey := new([32]byte)
-    box.Precompute(auditorSharedKey, auditorPublicKey, s2SecretKey)
-    
+
         
     //first connection for setting up rows
     conn, err := ln.Accept()
@@ -123,7 +115,7 @@ func main() {
         }
         //log.Println("1 connection from server A")
         conn.SetDeadline(time.Time{})
-        go worker(i, conn, m, clientPublicKey, auditorSharedKey, s2SecretKey)
+        go worker(i, conn, m, clientPublicKey, s2SecretKey)
     }
 
     //main loop of reads -- writes handled inside workers
@@ -175,7 +167,7 @@ func intToByte(myInt int) (retBytes []byte){
     return
 }
 
-func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedKey, s2SecretKey *[32]byte) {
+func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, s2SecretKey *[32]byte) {
     //log.Println("starting worker")
     //setup the worker-specific db
     dbSize :=  int(C.dbSize)
@@ -304,7 +296,24 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
             }
         }
 
+	//TODO
 
+	//run audit prep part
+	//TODO
+
+	//receive audit info from client through server A, as well as server A audit outputs
+		
+	//prepare audit response, check audit passes, send audit response to server A
+
+	auditOutputs := make(byte[], 4)//TODO
+
+        n, err := conn.Write(auditOutputs)
+        if err != nil {
+            log.Println(n, err)
+            return
+        } 
+
+/* the old auditing part
         //run audit part
         C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
         
@@ -320,7 +329,9 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, auditorSharedK
         if err != nil {
             log.Println(n, err)
             return
-        }            
+        }    
+*/
+        
     }
 }
 
