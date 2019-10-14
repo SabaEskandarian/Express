@@ -429,6 +429,56 @@ void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* o
 	*output = stash;
 }
 
+void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, uint8_t* outputsAIn, uint8_t* outputsBIn){
+
+    uint128_t *outputsA = (uint128_t*) outputsAIn;
+    uint128_t *outputsB = (uint128_t*) outputsBIn;
+//outputs will hold the following items in the following order
+//this comes out to 16 values
+//outputs for server A of the first multiplication proof (cc)
+//rfacc 
+//rgacc
+//h2acc
+//beaveraacc
+//beaverabcc
+//beaveraccc
+//outputs for server A of the second multiplication proof (mC)
+//rfamC
+//rgamC
+//h0amC
+//h1amC
+//h2amC
+//beaveraamC
+//beaverabmC
+//beaveracmC
+
+//outputs for server B of the second multiplication proof
+//rfbmC
+//rgbmC
+//h0bmC
+//h1bmC
+//h2bmC
+//beaverbamC
+//beaverbbmC
+//beaverbcmC
+//outputs for server B of the first multiplication proof
+//rfbcc
+//rgbcc
+//h2bcc
+//beaverbacc
+//beaverbbcc
+//beaverbccc
+
+//client generates a bunch of randomness and assigns most of the outputs 
+
+
+//calculate the second share of the output of each beaver triple 
+
+
+//calculate h2 by finding the equation of h
+
+}
+
 //client check inputs
 void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn){
     
