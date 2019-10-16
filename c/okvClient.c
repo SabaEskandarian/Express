@@ -84,7 +84,7 @@ void prepQuery(int threadNum, int localIndex, uint8_t *dataToWrite, int dataSize
     
 }
 
-void prepAudit(int threadNum, int index, int layers, uint8_t *seed, uint8_t *userBits, uint8_t *nonZeroVectors, uint8_t *dpfQueryA, uint8_t *dpfQueryB){
+void prepAudit(int threadNum, int index, uint8_t *seed, uint8_t *outputsA, uint8_t *outputsB, uint8_t *dpfQueryA, uint8_t *dpfQueryB){
     
     //userBits and nonZeroVectors need to be malloced before this is called
     
@@ -97,7 +97,8 @@ void prepAudit(int threadNum, int index, int layers, uint8_t *seed, uint8_t *use
     shareB = evalDPF(ctx[threadNum], dpfQueryB, db[index].rowID, 16, temp);
     
     //call the auditing function
-    clientVerify(ctx[threadNum], *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
+    //clientVerify(ctx[threadNum], *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
+    clientGenProof(EVP_CIPHER_CTX *ctx, *(uint128_t*)seed, index, shareA, shareB, outputsA, outputsB);
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){

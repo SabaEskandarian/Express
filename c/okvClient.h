@@ -27,7 +27,7 @@ void getVirtualAddress(int index, uint8_t *virtualAddress);
 void prepQuery(int threadNum, int localIndex, uint8_t *dataToWrite, int dataSize, int *querySize, uint8_t **dpfQueryA, uint8_t **dpfQueryB);
 
 //prepare an audit response for most recent query
-void prepAudit(int threadNum, int index, int layers, uint8_t *seed, uint8_t *userBits, uint8_t *nonZeroVectors, uint8_t *dpfQueryA, uint8_t *dpfQueryB);
+void prepAudit(int threadNum, int index, uint8_t *seed, uint8_t *outputsA, uint8_t *outputsB, uint8_t *dpfQueryA, uint8_t *dpfQueryB);
 
 //decrypt and recover a row
 void decryptRow(int localIndex, uint8_t *dataA, uint8_t *dataB, uint8_t *seedA, uint8_t *seedB);

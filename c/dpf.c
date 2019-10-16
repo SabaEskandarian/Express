@@ -433,51 +433,191 @@ void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aS
 
     uint128_t *outputsA = (uint128_t*) outputsAIn;
     uint128_t *outputsB = (uint128_t*) outputsBIn;
-//outputs will hold the following items in the following order
-//this comes out to 16 values
-//outputs for server A of the first multiplication proof (cc)
-//rfacc 
-//rgacc
-//h2acc
-//beaveraacc
-//beaverabcc
-//beaveraccc
-//outputs for server A of the second multiplication proof (mC)
-//rfamC
-//rgamC
-//h0amC
-//h1amC
-//h2amC
-//beaveraamC
-//beaverabmC
-//beaveracmC
 
-//outputs for server B of the second multiplication proof
-//rfbmC
-//rgbmC
-//h0bmC
-//h1bmC
-//h2bmC
-//beaverbamC
-//beaverbbmC
-//beaverbcmC
-//outputs for server B of the first multiplication proof
-//rfbcc
-//rgbcc
-//h2bcc
-//beaverbacc
-//beaverbbcc
-//beaverbccc
+	//outputs will hold the following items in the following order
+	//this comes out to 10 values
+	//outputs for server A of the first multiplication proof (cc)	
+	//f0amult1 (index) 0
+	//g0amult1 1
+	//h0amult1 2
+	//h1amult1 3
+	//h2amult1 4
+	//outputs for server A of the second multiplication proof (mC)
+	//f0amult2 5
+	//g0amult2 6
+	//h0amult2 7
+	//h1amult2 8
+	//h2amult2 9
+	//all the same things needed for server B as well
 
-//client generates a bunch of randomness and assigns most of the outputs 
+	//client generates a bunch of randomness and assigns most of the outputs 
+	//whp these are all in the field we're using
+	for(int i = 0; i < 10; i++){
+		outputsB[i] = getRandomBlock();	
+	}
+	outputsA[0] = getRandomBlock(); 
+	outputsA[1] = getRandomBlock();
+	outputsA[2] = getRandomBlock();
+	outputsA[5] = getRandomBlock();
+	outputsA[6] = getRandomBlock();
+	outputsA[7] = getRandomBlock();
 
+	//find f0,g0 based on randomness generated above
+	uint128_t f0mult1 = addModP(outputsA[0], outputsB[0]);
+	uint128_t g0mult1 = addModP(outputsA[1], outputsB[1]);
+	uint128_t f0mult2 = addModP(outputsA[5], outputsB[5]);
+	uint128_t g0mult2 = addModP(outputsA[6], outputsB[6]);
 
-//calculate the second share of the output of each beaver triple 
+	//find f1,g1 (shortcut since client knows non-zero index)
+	uint128_t rvalue;
+	PRF(ctx, seed, 0, index, &rvalue);
+	uint128_t f1mult1 = multModP(addModP(aShare, bShare), rvalue);
+	uint128_t g1mult1 = f1mult1; 
+	uint128_t f1mult2 = f1mult1; 
+	uint128_t g1mult2 = f1mult1;
 
+	//calculate h1 values by multiplying
+	uint128_t h1mult1 = multModP(f1mult1,g1mult1);
+	uint128_t h1mult2 = multModP(f1mult2,g1mult2);
 
-//calculate h2 by finding the equation of h
+	//put shares of h1 in output
+	outputsA[3] = addModP(outputsB[3], h1mult1);
+	outputsA[8] = addModP(outputsB[8], h1mult2);
 
+	//find f2,g2
+	uint128_t two = 2;
+	uint128_t f2mult1 = evalLinearR(two, f0mult1, f1mult1);
+	uint128_t g2mult1 = evalLinearR(two, g0mult1, g1mult1);
+	uint128_t f2mult2 = evalLinearR(two, f0mult2, f1mult2);
+	uint128_t g2mult2 = evalLinearR(two, g0mult2, g1mult2);
+
+	//calculate h2 values by multiplying
+	uint128_t h2mult1 = multModP(f2mult1,g2mult1);
+	uint128_t h2mult2 = multModP(f2mult2,g2mult2);
+
+	//put shares of h2 in output
+	outputsA[4] = addModP(outputsB[4], h2mult1);
+	outputsA[9] = addModP(outputsB[9], h2mult2);
 }
+
+void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t* vectorsIn, uint8_t* mIn, uint8_t* cIn){
+
+	uint128_t* m = (uint128_t*) mIn;
+	uint128_t* c = (uint128_t*) cIn;
+	uint128_t* vectors = (uint128_t*) vectorsIn;
+	uint128_t seed;
+	memcpy(&seed, seedIn, 16);
+
+	uint128_t prfOutput;
+	uint128_t workingM = 0;
+	uint128_t workingC = 0;
+
+	for(int i = 0; i < dbSize; i++){
+       		PRF(ctx, seed, 0, i, &prfOutput);    
+		workingM = addModP(workingM, vectors[i]);
+		workingC = addModP(workingC, multModP(vectors[i], prfOutput));
+	}
+
+	memcpy(m, workingM, 16);
+	memcpy(c, workingC, 16); 
+}
+
+void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint8_t* cIn, uint8_t* proofIn, uint8_t* ansIn){
+	uint128_t* m = (uint128_t*) mIn;
+	uint128_t* c = (uint128_t*) cIn;
+	uint128_t* proof = (uint128_t*) proofIn;
+	uint128_t* ans = (uint128_t*) ansIn;
+	uint128_t seed;
+	memcpy(&seed, seedIn, 16);
+
+	//including this just for readability
+	uint128_t f0mult1 = proof[0];
+	uint128_t g0mult1 = proof[1];
+	uint128_t h0mult1 = proof[2];
+	uint128_t h1mult1 = proof[3];
+	uint128_t h2mult1 = proof[4];
+	uint128_t f0mult2 = proof[5];
+	uint128_t g0mult2 = proof[6];
+	uint128_t h0mult2 = proof[7];
+	uint128_t h1mult2 = proof[8];
+	uint128_t h2mult2 = proof[9];
+
+	//generate a random point r from seed
+	uint128_t r1, r2; 
+       	PRF(ctx, seed, 1, 0, &r1);
+       	PRF(ctx, seed, 2, 0, &r2);
+	
+	//compute f(r), g(r)
+	uint128_t frmult1 = evalLinearR(r1, f0mult1, f1mult1);
+	uint128_t grmult1 = evalLinearR(r1, g0mult1, g1mult1);
+	uint128_t frmult2 = evalLinearR(r2, f0mult2, f1mult2);
+	uint128_t grmult2 = evalLinearR(r2, g0mult2, g1mult2);
+
+	//compute h(r)
+	uint128_t hrmult1 = evalQuadraticR(r1, h0mult1, h1mult1, h2mult1);
+	uint128_t hrmult2 = evalQuadraticR(r2, h0mult2, h1mult2, h2mult2);
+
+	//set the appropriate elements of ans (6 elements)
+	ans[0] = frmult1;
+	ans[1] = grmult1;
+	ans[2] = hrmult1;
+	ans[3] = frmult2;
+	ans[4] = grmult2;
+	ans[5] = hrmult2;
+}
+
+int serverVerifyProof(uint8_t* ans1In, uint8_t* ans2In){
+	uint128_t* ans1 = (uint128_t*) ans1In;
+	uint128_t* ans2 = (uint128_t*) ans2In;
+	
+	uint128_t f1 = addModP(ans1[0], ans2[0]);
+	uint128_t g1 = addModP(ans1[1], ans2[1]);
+	uint128_t h1 = addModP(ans1[2], ans2[2]);
+	uint128_t f2 = addModP(ans1[3], ans2[3]);
+	uint128_t g2 = addModP(ans1[4], ans2[4]);
+	uint128_t h2 = addModP(ans1[5], ans2[5]);
+
+	uint128_t prod1 = multModP(f1, g1);
+	uint128_t prod2 = multModP(f2, g2);
+
+	int pass = (memcmp(prod1, h1, 16) == 0) && (memcmp(prod2, h2, 16) == 0);
+	return pass;
+}
+
+uint128_t evalLinearR(uint128_t r, uint128_t p0, uint128_t p1){
+	uint128_t slope = subModP(p1, p0);
+	uint128_t pr = addModP(multModP(slope, r), p0);
+	return pr;
+}
+
+uint128_t evalQuadraticR(uint128_t r, uint128_t h0, uint128_t h1, uint128_t h2){
+	// h(r) = (1/2)(r-1)(r-2)h0 - r(r-2)h1 + (1/2)r(r-1)h2
+
+	//(1/2)(r-1)(r-2)h0
+	uint128_t t0 = 0;
+	if(r%2 == 0) {
+		t0 = multModP(h0, multModP(r-1, (r-2)/2));
+	} 
+	else{
+		t0 = multModP(h0, multModP((r-1)/2, r-2));
+	} 
+
+	//r(r-2)h1
+	uint128_t t1 = multModP(multModP(r, r-2), h1);
+	
+	//(1/2)r(r-1)h2
+	uint128_t t2 = 0;
+	if(r%2 == 0) {
+		t2 = multModP(h2, multModP(r-1, r/2));
+	} 
+	else{
+		t2 = multModP(h2, multModP((r-1)/2, r));
+	}
+	
+	//final sum
+	uint128_t ret = addModP(subModP(t0, t1), t2);
+}
+
 
 //client check inputs
 void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn){

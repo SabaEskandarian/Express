@@ -47,6 +47,17 @@ uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSi
 void PRF(EVP_CIPHER_CTX *ctx, uint128_t seed, int layer, int count, uint128_t* output);
 void digest_message(const unsigned char *message, size_t message_len, unsigned char **digest, unsigned int *digest_len);
 
+//new auditing functions
+void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, uint8_t* outputsAIn, uint8_t* outputsBIn);
+void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t* vectorsIn, uint8_t* mIn, uint8_t* cIn);
+void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint8_t* cIn, uint8_t* proofIn, uint8_t* ansIn);
+int serverVerifyProof(uint8_t* ans1In, uint8_t* ans2In);
+uint128_t evalLinearR(uint128_t r, uint128_t p0, uint128_t p1);
+uint128_t evalQuadraticR(uint128_t r, uint128_t h0, uint128_t h1, uint128_t h2);
+
+
+//old auditing functions
+
 //client check inputs
 void clientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, int dbLayers, uint8_t* bits, uint8_t* nonZeroVectorsIn);
 void riposteClientVerify(EVP_CIPHER_CTX *ctx, uint128_t seed, int dbSize, uint128_t *va, uint128_t *vb, uint8_t **digestA, uint8_t **digestB);

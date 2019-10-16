@@ -321,9 +321,9 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
             blockClient := make(chan int)
             blockS2 := make(chan int)
             
-            s2Input := make([]byte, 24+4+(int(C.layers)*2*16)+box.Overhead)
+            s2Input := make([]byte, 96)//1 answer (6 16-byte elements)
 
-            clientDataSize := 24+box.Overhead+int(C.layers)+int(C.layers)*16
+            clientDataSize := 24+box.Overhead+320 //nonce, overhead, 2 proof shares of 160 bytes each
             clientAuditInput := make([]byte, clientDataSize)
             
             go func(){
@@ -337,23 +337,25 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     log.Println(n, err)
                     return
                 } 
-
+		
+		/* this should be later on now
                 //read server B boxed audit part
-                for count := 0; count < 24+4+(int(C.layers)*2*16)+box.Overhead; {
+                for count := 0; count < 96; {
                     n, err:= connB.Read(s2Input[count:])
                     count += n
-                    if err != nil && err != io.EOF && count != 24+4+(int(C.layers)*2*16)+box.Overhead{
+                    if err != nil && err != io.EOF && count != 96{
                         log.Println(err)
                         return
                     }
                 }
+		*/
                 
                 blockS2 <- 1
             }()
      
             go func(){
                 //send seed and layers to client
-                n, err:=conn.Write(append(seed[:], intToByte(int(C.layers))...))
+                n, err:=conn.Write(seed[:])
                 if err != nil {
                     log.Println(n, err)
                     return

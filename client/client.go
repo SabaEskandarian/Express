@@ -494,12 +494,12 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         return
     }
     
-    //read seed and layers from server A (in preparation for auditing)
-    retA := make([]byte, 20)
-    for count := 0; count < 20; {
+    //read seed from server A (in preparation for auditing)
+    retA := make([]byte, 16)
+    for count := 0; count < 16; {
         n, err= conn.Read(retA[count:])
         count += n
-        if err != nil && count != 20{
+        if err != nil && count != 16{
             log.Println(err)
             log.Println(n)
             return
@@ -509,18 +509,18 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     startTime = time.Now()
     
     seed := retA[:16]
-    layers := retA[16:20]
 
-//TODO change the auditing flow from here onward.
     
     //prepare message for auditor, box it, and send to server A
     //prepare the auditor message
     
-    //userBits := (*C.uchar)(C.malloc(C.ulong(byteToInt(layers))))
-    //nonZeroVectors := (*C.uchar)(C.malloc(C.ulong(16*byteToInt(layers))))
+    outputsA := (*C.uchar)(C.malloc(C.ulong(160)))
+    outputsB := (*C.uchar)(C.malloc(C.ulong(160)))
     
-    //C.prepAudit(C.int(threadNum), C.int(localIndex), C.int(byteToInt(layers)), (*C.uchar)(&seed[0]), userBits, nonZeroVectors, dpfQueryA, dpfQueryB)
+    C.prepAudit(C.int(threadNum), C.int(localIndex), (*C.uchar)(&seed[0]), outputsA, outputsB, dpfQueryA, dpfQueryB)
     
+    auditPlaintextA := C.GoBytes(unsafe.Pointer(outputsA), C.int(160))
+    auditPlaintextB := C.GoBytes(unsafe.Pointer(outputsB), C.int(160))
     
     //box message to auditor
     //var nonce [24]byte already declared above
@@ -529,13 +529,7 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     if err != nil{
         log.Println("couldn't get randomness for nonce!")
     }
-    
-    //placeholders
-    auditPlaintextA := make([]byte, 4)
 
-    auditPlaintextB := make([]byte, 4) //append(C.GoBytes(unsafe.Pointer(userBits), C.int(byteToInt(layers))), C.GoBytes(unsafe.Pointer(nonZeroVectors), C.int(byteToInt(layers)*16))...)
-    
-    
     s2AuditCiphertext := box.Seal(nonce[:], auditPlaintextB, &nonce, s2PublicKey, clientSecretKey)
     
     msg = append(auditPlaintextA, s2AuditCiphertext)
@@ -551,14 +545,13 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     startTime = time.Now()
     
-    //these may go away once the audit stuff changes
-    //C.free(unsafe.Pointer(userBits))
-    //C.free(unsafe.Pointer(nonZeroVectors))
+    C.free(unsafe.Pointer(outputsA))
+    C.free(unsafe.Pointer(outputsB))
     C.free(unsafe.Pointer(dpfQueryA))
     C.free(unsafe.Pointer(dpfQueryB))
     
     totalTime += time.Since(startTime)
-//TODO auditing stuff ends here
+    //auditing stuff ends here
     
     done := make([]byte, 4)
     for count := 0; count < 4; {
