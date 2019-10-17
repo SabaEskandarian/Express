@@ -37,7 +37,7 @@ func main() {
 
     log.SetFlags(log.Lshortfile) 
     
-    if len(os.Args) < 7 {
+    if len(os.Args) < 6 {
         log.Println("usage: serverA [serverBip:port] [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]")
         return
     } else {
@@ -102,7 +102,7 @@ func main() {
     blocker2 := make(chan int)
     conns := make(chan net.Conn)
     for i := 0; i < numThreads; i++ {
-        go leaderWorker(i, conns, blocker, blocker2, serverB, auditor, &ops)
+        go leaderWorker(i, conns, blocker, blocker2, serverB, &ops)
         <- blocker
     }
     
@@ -210,7 +210,7 @@ func reportThroughput(ops *uint64) {
     }
 }
 
-func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, serverB, auditor string, ops *uint64 ) {
+func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-chan int, serverB string, ops *uint64 ) {
     //setup the worker-specific db
     dbSize :=  int(C.dbSize)
     db := make([][]byte, dbSize)
@@ -218,7 +218,6 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
         db[i] = make([]byte, int(C.db[i].dataSize))
     }
     vector := make([]byte, dbSize*16)
-    outVector := make([]byte, 2*int(C.layers)*16)
     writeHappened := false
     
     
@@ -320,11 +319,11 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
             
             blockClient := make(chan int)
             blockS2 := make(chan int)
-            
-            s2Input := make([]byte, 96)//1 answer (6 16-byte elements)
 
-            clientDataSize := 24+box.Overhead+320 //nonce, overhead, 2 proof shares of 160 bytes each
+            clientDataSize := 160 
+	    clientDataSizeB := 24+box.Overhead+160
             clientAuditInput := make([]byte, clientDataSize)
+            clientAuditInputB := make([]byte, clientDataSizeB)
             
             go func(){
                 //forward sizes, seed, and boxed query to server B
@@ -337,35 +336,30 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                     log.Println(n, err)
                     return
                 } 
-		
-		/* this should be later on now
-                //read server B boxed audit part
-                for count := 0; count < 96; {
-                    n, err:= connB.Read(s2Input[count:])
-                    count += n
-                    if err != nil && err != io.EOF && count != 96{
-                        log.Println(err)
-                        return
-                    }
-                }
-		*/
                 
                 blockS2 <- 1
             }()
      
             go func(){
-                //send seed and layers to client
+                //send seed to client
                 n, err:=conn.Write(seed[:])
                 if err != nil {
                     log.Println(n, err)
                     return
                 }
                 
-                //receive boxed client audit part
+                //receive proofs
                 for count := 0; count < clientDataSize; {
                     n, err:= conn.Read(clientAuditInput[count:])
                     count += n
                     if err != nil && err != io.EOF && count != clientDataSize{
+                        log.Println(err)
+                    }
+                }
+                 for count := 0; count < clientDataSizeB; {
+                    n, err:= conn.Read(clientAuditInputB[count:])
+                    count += n
+                    if err != nil && err != io.EOF && count != clientDataSizeB{
                         log.Println(err)
                     }
                 }
@@ -415,45 +409,54 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 }
             }
             
-            //run audit part
-            C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
-            
-            //log.Println("received client audit, ran computation")
-            
-            <- blockS2
+            //old audit
+            //C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
+	    //prepare for audit
+	    mVal := make([]byte, 16)
+	    cVal := make([]byte, 16)
+	    C.serverSetupProof(C.ctx[id], (*C.uchar)(&seed[0]), C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]))
+
+
             <- blockClient
-            
-            //log.Println("received worker audit")
-            
-            //send audit parts to auditor
-            msg := append(intToByte(int(C.layers)), outVector...)
-            msg = append(msg, s2Input...)
-            msg = append(msg, clientAuditInput...)
-            
-            n, err := connAudit.Write(msg)
+	    //compute audit query
+	    ansA := make([]byte, 96)
+	    C.serverComputeQuery(C.ctx[id], (*C.uchar)(&seed[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]), (*C.uchar)(&clientAuditInput[0]), (*C.uchar)(&ansA[0]))
+	    
+            <- blockS2
+
+
+	    //send audit query and response to server B
+            n, err:=connB.Write(clientAuditInputB)
             if err != nil {
                 log.Println(n, err)
                 return
             }
-            
-            //log.Println("sent audit materials")
-            
+            n, err=connB.Write(ansA)
+            if err != nil {
+                log.Println(n, err)
+                return
+            }
 
-            //read auditor response and give an error if it doesn't accept
-            auditResp := make([]byte, 1)
-            count = 0
-            for count < 1 {
-                n, err = connAudit.Read(auditResp)
+	    //receive server B audit response and answer
+	    ansB := make([]byte, 100)
+            for count := 0; count < 100; {
+                n, err:= conn.Read(ansB[count:])
                 count += n
-                if err != nil && n != 1 {
-                    log.Println(n, err)
-                    return
+                if err != nil && err != io.EOF && count != 100{
+                    log.Println(err)
                 }
             }
-            
-            if auditResp[0] != 1 {
-                log.Println("Audit Failed.")
-            }
+
+	    //compute answer to audit, respond to client if needed
+            auditResp := int(C.serverVerifyProof((*C.uchar)(&ansA[0]), (*C.uchar)(&ansB[4])))
+	
+	    if byteToInt(ansB[:4]) == 0{
+		log.Println("audit failed on server B")
+	    }
+
+	    if auditResp == 0{
+		log.Println("audit failed")
+	    }
             
             //send signal that we're done if client is still connected
             done := 1

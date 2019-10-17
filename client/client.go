@@ -522,22 +522,22 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     auditPlaintextA := C.GoBytes(unsafe.Pointer(outputsA), C.int(160))
     auditPlaintextB := C.GoBytes(unsafe.Pointer(outputsB), C.int(160))
     
-    //box message to auditor
+    //box message for auditing
     //var nonce [24]byte already declared above
     //fill nonce with randomness
-    _, err = rand.Read(nonce[:])
+    _, err = rand.Read(nonce[:]) 
     if err != nil{
         log.Println("couldn't get randomness for nonce!")
     }
 
     s2AuditCiphertext := box.Seal(nonce[:], auditPlaintextB, &nonce, s2PublicKey, clientSecretKey)
     
-    msg = append(auditPlaintextA, s2AuditCiphertext)
+    msg = append(auditPlaintextA, s2AuditCiphertext...)
 
     totalTime += time.Since(startTime)
     
     //send boxed audit message to server A
-    n, err = conn.Write(auditCiphertext)
+    n, err = conn.Write(msg)
     if err != nil {
         log.Println(n, err)
         return

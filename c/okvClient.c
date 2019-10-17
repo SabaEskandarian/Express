@@ -98,7 +98,7 @@ void prepAudit(int threadNum, int index, uint8_t *seed, uint8_t *outputsA, uint8
     
     //call the auditing function
     //clientVerify(ctx[threadNum], *(uint128_t*)seed, index, shareA, shareB, layers, userBits, nonZeroVectors);
-    clientGenProof(EVP_CIPHER_CTX *ctx, *(uint128_t*)seed, index, shareA, shareB, outputsA, outputsB);
+    clientGenProof(ctx[threadNum], *(uint128_t*)seed, index, shareA, shareB, outputsA, outputsB);
 }
 
 void getVirtualAddress(int index, uint8_t *virtualAddress){

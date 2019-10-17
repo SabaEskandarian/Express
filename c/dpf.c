@@ -518,8 +518,8 @@ void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t*
 		workingC = addModP(workingC, multModP(vectors[i], prfOutput));
 	}
 
-	memcpy(m, workingM, 16);
-	memcpy(c, workingC, 16); 
+	memcpy(m, &workingM, 16);
+	memcpy(c, &workingC, 16); 
 }
 
 void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint8_t* cIn, uint8_t* proofIn, uint8_t* ansIn){
@@ -548,10 +548,10 @@ void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint
        	PRF(ctx, seed, 2, 0, &r2);
 	
 	//compute f(r), g(r)
-	uint128_t frmult1 = evalLinearR(r1, f0mult1, f1mult1);
-	uint128_t grmult1 = evalLinearR(r1, g0mult1, g1mult1);
-	uint128_t frmult2 = evalLinearR(r2, f0mult2, f1mult2);
-	uint128_t grmult2 = evalLinearR(r2, g0mult2, g1mult2);
+	uint128_t frmult1 = evalLinearR(r1, f0mult1, *c);
+	uint128_t grmult1 = evalLinearR(r1, g0mult1, *c);
+	uint128_t frmult2 = evalLinearR(r2, f0mult2, *m);
+	uint128_t grmult2 = evalLinearR(r2, g0mult2, *c);
 
 	//compute h(r)
 	uint128_t hrmult1 = evalQuadraticR(r1, h0mult1, h1mult1, h2mult1);
@@ -580,7 +580,7 @@ int serverVerifyProof(uint8_t* ans1In, uint8_t* ans2In){
 	uint128_t prod1 = multModP(f1, g1);
 	uint128_t prod2 = multModP(f2, g2);
 
-	int pass = (memcmp(prod1, h1, 16) == 0) && (memcmp(prod2, h2, 16) == 0);
+	int pass = (memcmp(&prod1, &h1, 16) == 0) && (memcmp(&prod2, &h2, 16) == 0);
 	return pass;
 }
 
@@ -1047,19 +1047,19 @@ int dpf_tests(){
         begin = clock();
         clientVerify(ctx, *seed, 10, vectorsA[10], vectorsB[10], dbLayer[i], bits, (uint8_t*)nonZeroVectors);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("client verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         
         begin = clock();
         serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsACopy, (uint8_t*)outVectorsA);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("server verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsBCopy, (uint8_t*)outVectorsB);
 
         pass = 0;
         begin = clock();
         pass = auditorVerify(dbLayer[i], bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("auditor verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("auditor verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         if(pass == 0){
             printf("dpf check verification failed %d\n", i);
         }
@@ -1085,19 +1085,19 @@ int dpf_tests(){
         begin = clock();
         riposteClientVerify(ctx, *seed, dbSizes[i], vectorsA, vectorsB, &digestA, &digestB);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("riposte client verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("riposte client verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         
         begin = clock();
         riposteServerVerify(ctx, *seed, dbSizes[i], vectorsA, outVectorsA, &cValueA);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("riposte server verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("riposte server verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         riposteServerVerify(ctx, *seed, dbSizes[i], vectorsB, outVectorsB, &cValueB);
         
         pass = 0;
         begin = clock();
         pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSizes[i]);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("riposte auditor verification time for db size %d: %d microseconds\n", dbSizes[i], elapsed);
+        printf("riposte auditor verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         if(pass == 0){
             printf("riposte dpf check verification failed %d\n", i);
         }

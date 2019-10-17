@@ -176,7 +176,6 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, s2SecretKey *[
         db[i] = make([]byte, int(C.db[i].dataSize))
     }
     vector := make([]byte, dbSize*16)
-    outVector := make([]byte, 2*int(C.layers)*16)
     
     for {
         //log.Println("worker sees a new connection")
@@ -296,16 +295,45 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, s2SecretKey *[
             }
         }
 
-	//TODO
-
 	//run audit prep part
-	//TODO
+	mVal := make([]byte, 16)
+	cVal := make([]byte, 16)
+	C.serverSetupProof(C.ctx[id], (*C.uchar)(&seed[0]), C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]))
 
 	//receive audit info from client through server A, as well as server A audit outputs
-		
-	//prepare audit response, check audit passes, send audit response to server A
+	proofBox := make([]byte, 160+24+box.Overhead)
+	ansA := make([]byte, 96)
+        
+        for count := 0; count < 24+160+box.Overhead; {
+            n, err:= conn.Read(proofBox[count:])
+            count += n
+            if err != nil && err != io.EOF && count != 24+160+box.Overhead{
+                log.Println(err)
+            }
+        }
+        copy(decryptNonce[:], proofBox[:24])
+        proof, ok := box.Open(nil, proofBox[24:], &decryptNonce, clientPublicKey, s2SecretKey)
+        if !ok {
+            log.Println("Decryption not ok!!")
+        }
+        for count := 0; count < 96; {
+            n, err:= conn.Read(ansA[count:])
+            count += n
+            if err != nil && err != io.EOF && count != 96{
+                log.Println(err)
+            }
+        }
 
-	auditOutputs := make(byte[], 4)//TODO
+	//prepare audit response, check audit passes, send audit response to server A
+	ansB := make([]byte, 96)
+	C.serverComputeQuery(C.ctx[id], (*C.uchar)(&seed[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]), (*C.uchar)(&proof[0]), (*C.uchar)(&ansB[0]))
+	auditResp := int(C.serverVerifyProof((*C.uchar)(&ansA[0]), (*C.uchar)(&ansB[0])))
+
+	if auditResp == 0{
+		log.Println("audit failed")
+	}
+
+	auditOutputs := append(intToByte(auditResp), ansB...)
 
         n, err := conn.Write(auditOutputs)
         if err != nil {
