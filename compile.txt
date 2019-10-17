@@ -1,1 +1,1 @@
-gcc -fopenmp -lcrypto -lm dpf.h dpf.c okv.h okv.c
+gcc -fopenmp dpf.h dpf.c -lcrypto -lm

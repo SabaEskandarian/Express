@@ -457,32 +457,37 @@ void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aS
 	}
 	outputsA[0] = getRandomBlock(); 
 	outputsA[1] = getRandomBlock();
-	outputsA[2] = getRandomBlock();
 	outputsA[5] = getRandomBlock();
 	outputsA[6] = getRandomBlock();
-	outputsA[7] = getRandomBlock();
 
 	//find f0,g0 based on randomness generated above
-	uint128_t f0mult1 = addModP(outputsA[0], outputsB[0]);
-	uint128_t g0mult1 = addModP(outputsA[1], outputsB[1]);
-	uint128_t f0mult2 = addModP(outputsA[5], outputsB[5]);
-	uint128_t g0mult2 = addModP(outputsA[6], outputsB[6]);
+	uint128_t f0mult1 = subModP(outputsA[0], outputsB[0]);
+	uint128_t g0mult1 = subModP(outputsA[1], outputsB[1]);
+	uint128_t f0mult2 = subModP(outputsA[5], outputsB[5]);
+	uint128_t g0mult2 = subModP(outputsA[6], outputsB[6]);
 
 	//find f1,g1 (shortcut since client knows non-zero index)
 	uint128_t rvalue;
 	PRF(ctx, seed, 0, index, &rvalue);
-	uint128_t f1mult1 = multModP(addModP(aShare, bShare), rvalue);
+	uint128_t f1mult1 = multModP(subModP(aShare, bShare), rvalue);
 	uint128_t g1mult1 = f1mult1; 
-	uint128_t f1mult2 = f1mult1; 
+	uint128_t f1mult2 = subModP(aShare, bShare); 
 	uint128_t g1mult2 = f1mult1;
 
-	//calculate h1 values by multiplying
+	//printf("value for m on client side"); print_block(f1mult2);
+	//printf("value for c on client side");print_block(f1mult1);
+
+	//calculate h0,h1 values by multiplying
+	uint128_t h0mult1 = multModP(f0mult1,g0mult1);
+	uint128_t h0mult2 = multModP(f0mult2,g0mult2);
 	uint128_t h1mult1 = multModP(f1mult1,g1mult1);
 	uint128_t h1mult2 = multModP(f1mult2,g1mult2);
 
-	//put shares of h1 in output
-	outputsA[3] = addModP(outputsB[3], h1mult1);
-	outputsA[8] = addModP(outputsB[8], h1mult2);
+	//put shares of h0,h1 in output
+	outputsA[2] = addModP(h0mult1, outputsB[2]);
+	outputsA[7] = addModP(h0mult2, outputsB[7]);
+	outputsA[3] = addModP(h1mult1, outputsB[3]);
+	outputsA[8] = addModP(h1mult2, outputsB[8]);
 
 	//find f2,g2
 	uint128_t two = 2;
@@ -496,8 +501,30 @@ void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aS
 	uint128_t h2mult2 = multModP(f2mult2,g2mult2);
 
 	//put shares of h2 in output
-	outputsA[4] = addModP(outputsB[4], h2mult1);
-	outputsA[9] = addModP(outputsB[9], h2mult2);
+	outputsA[4] = addModP(h2mult1, outputsB[4]);
+	outputsA[9] = addModP(h2mult2, outputsB[9]);
+
+	/*
+	//for testing, trying to produce output of proof
+
+	//compute f(r), g(r)
+	uint128_t frmult1 = evalLinearR(10, f0mult1, f1mult1);
+	uint128_t grmult1 = evalLinearR(10, g0mult1, g1mult1);
+	uint128_t frmult2 = evalLinearR(10, f0mult2, f1mult2);
+	uint128_t grmult2 = evalLinearR(10, g0mult2, g1mult2);
+
+	//compute h(r)
+	uint128_t hrmult1 = evalQuadraticR(10, h0mult1, h1mult1, h2mult1);
+	uint128_t hrmult2 = evalQuadraticR(10, h0mult2, h1mult2, h2mult2);
+	
+	printf("values: ");
+	printf("\nf1: ");print_block(frmult1);
+	printf("\ng1: ");print_block(grmult1);
+	printf("\nh1: ");print_block(hrmult1);
+	printf("\nf2: ");print_block(frmult2);
+	printf("\ng2: ");print_block(grmult2);
+	printf("\nh2: ");print_block(hrmult2);
+	*/
 }
 
 void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t* vectorsIn, uint8_t* mIn, uint8_t* cIn){
@@ -519,7 +546,7 @@ void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t*
 	}
 
 	memcpy(m, &workingM, 16);
-	memcpy(c, &workingC, 16); 
+	memcpy(c, &workingC, 16);
 }
 
 void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint8_t* cIn, uint8_t* proofIn, uint8_t* ansIn){
@@ -546,6 +573,10 @@ void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint
 	uint128_t r1, r2; 
        	PRF(ctx, seed, 1, 0, &r1);
        	PRF(ctx, seed, 2, 0, &r2);
+
+	//for testing
+	//r1 = 10;
+	//r2 = 10;
 	
 	//compute f(r), g(r)
 	uint128_t frmult1 = evalLinearR(r1, f0mult1, *c);
@@ -570,15 +601,28 @@ int serverVerifyProof(uint8_t* ans1In, uint8_t* ans2In){
 	uint128_t* ans1 = (uint128_t*) ans1In;
 	uint128_t* ans2 = (uint128_t*) ans2In;
 	
-	uint128_t f1 = addModP(ans1[0], ans2[0]);
-	uint128_t g1 = addModP(ans1[1], ans2[1]);
-	uint128_t h1 = addModP(ans1[2], ans2[2]);
-	uint128_t f2 = addModP(ans1[3], ans2[3]);
-	uint128_t g2 = addModP(ans1[4], ans2[4]);
-	uint128_t h2 = addModP(ans1[5], ans2[5]);
+	uint128_t f1 = subModP(ans1[0], ans2[0]);
+	uint128_t g1 = subModP(ans1[1], ans2[1]);
+	uint128_t h1 = subModP(ans1[2], ans2[2]);
+	uint128_t f2 = subModP(ans1[3], ans2[3]);
+	uint128_t g2 = subModP(ans1[4], ans2[4]);
+	uint128_t h2 = subModP(ans1[5], ans2[5]);
 
 	uint128_t prod1 = multModP(f1, g1);
 	uint128_t prod2 = multModP(f2, g2);
+	
+	/*
+	printf("recovered values: ");
+	printf("\nf1: ");print_block(f1);
+	printf("\ng1: ");print_block(g1);
+	printf("\nh1: ");print_block(h1);
+	printf("\nf2: ");print_block(f2);
+	printf("\ng2: ");print_block(g2);
+	printf("\nh2: ");print_block(h2);
+
+	printf("\n\nprod1: ");print_block(prod1);
+	printf("\nprod2: ");print_block(prod2);
+	*/
 
 	int pass = (memcmp(&prod1, &h1, 16) == 0) && (memcmp(&prod2, &h2, 16) == 0);
 	return pass;
@@ -879,6 +923,7 @@ int riposteAuditorVerify(uint8_t *digestA, uint8_t *digestB, uint8_t *ma, uint8_
 }
 
 int dpf_tests(){
+//int main(){
     //pick 2 64-bit values as a fixed aes key
     //and use those values to key the aes we will be using as a PRG
     EVP_CIPHER_CTX *ctx;
@@ -960,31 +1005,29 @@ int dpf_tests(){
         memcpy(&vectorsA[i], &res1, 16);
         memcpy(&vectorsB[i], &res2, 16);
     }
-    
-    uint128_t *vectorsACopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSize);
-    memcpy(vectorsACopy, vectorsA, 16*dbSize);        
-    uint128_t *vectorsBCopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSize);
-    memcpy(vectorsBCopy, vectorsB, 16*dbSize);
+
+    uint128_t* proofA = (uint128_t*)malloc(sizeof(uint128_t)*10);
+    uint128_t* proofB = (uint128_t*)malloc(sizeof(uint128_t)*10);
+    uint128_t* ansA = (uint128_t*)malloc(sizeof(uint128_t)*6);
+    uint128_t* ansB = (uint128_t*)malloc(sizeof(uint128_t)*6);
+    uint128_t mA, cA, mB, cB;
     
     //run the dpf verification functions
-    clientVerify(ctx, *seed, 4, vectorsA[4], vectorsB[4], dbLayers, bits, (uint8_t*)nonZeroVectors);
 
-    serverVerify(ctx, (uint8_t*)seed, dbLayers, dbSize, (uint8_t*)vectorsACopy, (uint8_t*)outVectorsA);
-    serverVerify(ctx, (uint8_t*)seed, dbLayers, dbSize, (uint8_t*)vectorsBCopy, (uint8_t*)outVectorsB);
+    clientGenProof(ctx, *seed, 4, vectorsA[4], vectorsB[4], (uint8_t*)proofA, (uint8_t*)proofB);
+    serverSetupProof(ctx, (uint8_t*)seed, dbSize, (uint8_t*) vectorsA, (uint8_t*)&mA, (uint8_t*) &cA);
+    serverSetupProof(ctx, (uint8_t*)seed, dbSize, (uint8_t*) vectorsB, (uint8_t*)&mB, (uint8_t*) &cB);
 
+    //printf("m on server side"); print_block(subModP(mA,mB));
+    //printf("c on server side");print_block(subModP(cA,cB));
+
+    serverComputeQuery(ctx, (uint8_t*)seed, (uint8_t*)&mA, (uint8_t*) &cA, (uint8_t*)proofA, (uint8_t*) ansA);
+    serverComputeQuery(ctx, (uint8_t*)seed, (uint8_t*)&mB, (uint8_t*) &cB, (uint8_t*)proofB, (uint8_t*) ansB);
     int pass = -1;
-    
-    pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+    pass = serverVerifyProof((uint8_t*) ansA, (uint8_t*) ansB);
     printf("dpf check verification: %d (should be 1)\n", pass);
     
-    //tamper with dpf outputs to see if auditor catches it
-    //memcpy(&outVectorsB[2], &outVectorsA[1], 16);
-    //pass = auditorVerify(dbLayers, bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
-    //printf("dpf check verification: %d (should be 0)\n", pass);
-    
     //now test the riposte auditing
-    free(vectorsACopy);
-    free(vectorsBCopy);
     free(outVectorsA);
     free(outVectorsB);
     outVectorsA = malloc(sizeof(uint128_t)*dbSize);
@@ -1007,6 +1050,7 @@ int dpf_tests(){
     //pass = riposteAuditorVerify(digestA, digestB, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB, cValueA, cValueB, dbSize);
     //printf("riposte dpf check verification: %d (should be 0)\n", pass);
     
+    //return 0;
     //performance test of dpf verification
     
     int dbSizes[4];
@@ -1032,44 +1076,51 @@ int dpf_tests(){
     vectorsA[10] = 13;
     vectorsB[10] = 12;
         
+/*
+void clientGenProof(EVP_CIPHER_CTX *ctx, uint128_t seed, int index, uint128_t aShare, uint128_t bShare, uint8_t* outputsAIn, uint8_t* outputsBIn);
+void serverSetupProof(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, int dbSize, uint8_t* vectorsIn, uint8_t* mIn, uint8_t* cIn);
+void serverComputeQuery(EVP_CIPHER_CTX *ctx, uint8_t *seedIn, uint8_t* mIn, uint8_t* cIn, uint8_t* proofIn, uint8_t* ansIn);
+int serverVerifyProof(uint8_t* ans1In, uint8_t* ans2In);
+*/
+
     //us
     for(int i = 0; i < 4; i++){
-        bits = malloc(dbLayer[i]);
-        nonZeroVectors = malloc(sizeof(uint128_t)*dbLayer[i]);
-        outVectorsA = malloc(sizeof(uint128_t)*2*dbLayer[i]);
-        outVectorsB = malloc(sizeof(uint128_t)*2*dbLayer[i]);
-        
-        vectorsACopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSizes[i]);
-        memcpy(vectorsACopy, vectorsA, 16*dbSizes[i]);        
-        vectorsBCopy = (uint128_t*) malloc(sizeof(uint128_t)*dbSizes[i]);
-        memcpy(vectorsBCopy, vectorsB, 16*dbSizes[i]);
+        proofA = (uint128_t*)malloc(sizeof(uint128_t)*10);
+        proofB = (uint128_t*)malloc(sizeof(uint128_t)*10);
+        ansA = (uint128_t*)malloc(sizeof(uint128_t)*6);
+        ansB = (uint128_t*)malloc(sizeof(uint128_t)*6);
+        uint128_t mA, cA, mB, cB;
         
         begin = clock();
-        clientVerify(ctx, *seed, 10, vectorsA[10], vectorsB[10], dbLayer[i], bits, (uint8_t*)nonZeroVectors);
+        clientGenProof(ctx, *seed, 10, vectorsA[10], vectorsB[10], (uint8_t*)proofA, (uint8_t*)proofB);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("client verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
+        printf("client proof gen time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         
         begin = clock();
-        serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsACopy, (uint8_t*)outVectorsA);
+        serverSetupProof(ctx, (uint8_t*)seed, dbSizes[i], (uint8_t*)vectorsA, (uint8_t*)&mA, (uint8_t*)&cA);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("server verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
-        serverVerify(ctx, (uint8_t*)seed, dbLayer[i], dbSizes[i], (uint8_t*)vectorsBCopy, (uint8_t*)outVectorsB);
+        printf("server prep time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
+        serverSetupProof(ctx, (uint8_t*)seed, dbSizes[i], (uint8_t*)vectorsB, (uint8_t*)&mB, (uint8_t*)&cB);
+
+        begin = clock();
+        serverComputeQuery(ctx, (uint8_t*)seed, (uint8_t*)&mA, (uint8_t*)&cA, (uint8_t*)proofA, (uint8_t*)ansA);
+        elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
+        printf("server query time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
+        serverComputeQuery(ctx, (uint8_t*)seed, (uint8_t*)&mB, (uint8_t*)&cB, (uint8_t*)proofB, (uint8_t*)ansB);
 
         pass = 0;
         begin = clock();
-        pass = auditorVerify(dbLayer[i], bits, (uint8_t*)nonZeroVectors, (uint8_t*)outVectorsA, (uint8_t*)outVectorsB);
+        pass = serverVerifyProof((uint8_t*)ansA,(uint8_t*)ansB);
         elapsed = (clock() - begin) * 1000000 / CLOCKS_PER_SEC;
-        printf("auditor verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
+        printf("server verification time for db size %d: %ld microseconds\n", dbSizes[i], elapsed);
         if(pass == 0){
             printf("dpf check verification failed %d\n", i);
         }
-        
-        free(vectorsACopy);
-        free(vectorsBCopy);
-        free(bits);
-        free(nonZeroVectors);
-        free(outVectorsA);
-        free(outVectorsB);
+
+	free(proofA);
+	free(proofB);
+	free(ansA);
+	free(ansB);
     }
     
     //riposte
@@ -1111,6 +1162,7 @@ int dpf_tests(){
     free(vectorsA);
     free(vectorsB);
     
+    return 0;
     //performance test of the dpf
     
     char *s[10];
