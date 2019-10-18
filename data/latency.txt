@@ -113,88 +113,112 @@ client.go:157: average read operation time (dataLen 10000): 11.98065076s
 web browser experiment
 
 
+baseline latency (reading a 20kb web page X times)
+50 sites
+11.644s
+100 sites
+23.760s
+150 sites
+35.138s
+200 sites
+46.929s
+250 sites
+58.808s
+300 sites
+72.169s
+350 sites
+82.914s
+400 sites
+95.509s
+
+
+
+
 Total latency (1kb read, + many 1kb reads, +many 20kb writes, +20kb read)
+updated to use the numbers where the client runs on my laptop
 
 500 mailboxes, 50 sites
-3.206s
+4.099s
 
 1000 mailboxes, 100 sites
-6.305s
+7.205s
 
 1500 mailboxes, 150 sites
-9.508s
+10.39s
 
 2000, 200 
-12.847s
+13.728s
 
 2500, 250 
-17.206s
+18.136
 
 3000, 300 
-21.957s
+22.809
 
 3500, 350 
-28.683s
+29.547
 
 4000, 400 
-34.03s
+34.872
 
+
+
+from a laptop in a residential area (not in the data center)
 
 1kb mailboxes
 
-dbSize 500 
-client.go:164: average write operation time (dataLen 1000): 28.081471ms
+dbsize 500
+client.go:164: average write operation time (dataLen 1000): 397.531174ms
 
-dbsize 1000 
-client.go:164: average write operation time (dataLen 1000): 33.694495ms
+dbsize 1000
+client.go:164: average write operation time (dataLen 1000): 403.810163ms
 
-dbsize 1500 
-client.go:164: average write operation time (dataLen 1000): 40.414773ms
+dbsize 1500
+client.go:164: average write operation time (dataLen 1000): 400.455ms
 
 dbsize 2000
-client.go:164: average write operation time (dataLen 1000): 44.221033ms
+client.go:164: average write operation time (dataLen 1000): 398.891927ms
 
-dbsize 2500 
-client.go:164: average write operation time (dataLen 1000): 49.364511ms
+dbsize 2500
+client.go:164: average write operation time (dataLen 1000): 402.502641ms
 
-dbsize 3000 
-client.go:164: average write operation time (dataLen 1000): 64.02321ms
+dbsize 3000
+client.go:164: average write operation time (dataLen 1000): 401.982729ms
 
-dbsize 3500 
-client.go:164: average write operation time (dataLen 1000): 68.094855ms
+dbsize 3500
+client.go:164: average write operation time (dataLen 1000): 401.655573ms
 
-dbsize 4000 
-client.go:164: average write operation time (dataLen 1000): 73.485629ms
-
+dbsize 4000
+client.go:164: average write operation time (dataLen 1000): 401.336259ms
 
 
 20kb mailboxes
+dbsize 500
+client.go:165: average read operation time (dataLen 20000): 582.149409ms
 
-dbSize 500, dataSize 20000
-client.go:165: average read operation time (dataLen 20000): 58.828234ms
+dbsize 1000
+client.go:165: average read operation time (dataLen 20000): 602.431181ms
 
-dbSize 1000, dataSize 20000
-client.go:165: average read operation time (dataLen 20000): 72.380295ms
-
-dbSize 1500, dataSize 20000
-client.go:165: average read operation time (dataLen 20000): 87.783446ms
+dbsize 1500
+client.go:165: average read operation time (dataLen 20000): 610.03405ms
 
 dbsize 2000
-client.go:165: average read operation time (dataLen 20000): 101.140348ms
+client.go:165: average read operation time (dataLen 20000): 627.463881ms
 
 dbsize 2500
-client.go:165: average read operation time (dataLen 20000): 115.101492ms
+client.go:165: average read operation time (dataLen 20000): 642.544058ms
 
 dbsize 3000
-client.go:165: average read operation time (dataLen 20000): 132.504002ms
+client.go:165: average read operation time (dataLen 20000): 647.254487ms
 
 dbsize 3500
-client.go:165: average read operation time (dataLen 20000): 145.665355ms
+client.go:165: average read operation time (dataLen 20000): 676.091948ms
 
 dbsize 4000
-client.go:165: average read operation time (dataLen 20000): 164.802252ms
+client.go:165: average read operation time (dataLen 20000): 679.151438ms
 
 
+in the data center
 
 500 mailboxes, 50 writes/reads 
 client.go:214: average write operation time (dataLen 20000): 1.0915262s

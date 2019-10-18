@@ -34,13 +34,16 @@ ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
 -------
 for web browsing application
 
-comparison baseline is 20kb per web site, go from 50 to 400 sites
+comparison baseline is 20kb per web site, go from 50 to 400 sites (we'll use # sites = #mailboxes/10)
 
 for us it's one client write of 1kb and one read of 20kb
 
-ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)= 44,757 + 17*log_2(dbSize)
+ClientWriteTotal (bytes)  = 4757 + 2*msgSize + 17*log_2(dbSize)= 44,757 + 17*log_2(dbSize)
 client read (bytes): 95 + 2*msgsize = 95 + 2*20,000 = 40, 095
 total: 84,852 + 17*log_2(dbSize)
+
+log_2(dbsize):9, 10, 11, 11, 12, 12, 12, 12
+
 
 ------
 
