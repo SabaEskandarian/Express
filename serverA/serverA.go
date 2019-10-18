@@ -416,13 +416,15 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
 	    cVal := make([]byte, 16)
 	    C.serverSetupProof(C.ctx[id], (*C.uchar)(&seed[0]), C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]))
 
-
+	    //log.Println("Waiting for client");
             <- blockClient
 	    //compute audit query
 	    ansA := make([]byte, 96)
 	    C.serverComputeQuery(C.ctx[id], (*C.uchar)(&seed[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]), (*C.uchar)(&clientAuditInput[0]), (*C.uchar)(&ansA[0]))
-	    
+
+	    //log.Println("waiting for server B");
             <- blockS2
+
 
 
 	    //send audit query and response to server B
@@ -437,10 +439,11 @@ func leaderWorker(id int, conns <-chan net.Conn, blocker chan<- int, blocker2 <-
                 return
             }
 
+	    //log.Println("waiting for server B (2)");
 	    //receive server B audit response and answer
 	    ansB := make([]byte, 100)
             for count := 0; count < 100; {
-                n, err:= conn.Read(ansB[count:])
+                n, err:= connB.Read(ansB[count:])
                 count += n
                 if err != nil && err != io.EOF && count != 100{
                     log.Println(err)
@@ -607,7 +610,7 @@ func addRows(leader int, conn net.Conn) {
         }
         
         count = 0
-        //read rowKey
+        //read rowKey 
         for count < 16 {
             n, err= conn.Read(rowKey[count:])
             count += n

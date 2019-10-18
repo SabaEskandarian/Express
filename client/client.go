@@ -62,7 +62,7 @@ func main() {
     
     C.initializeClient(C.int(numThreads))   
     
-    //using a deterministic source of randomness for testing
+    //using a deterministic source of randomness for testing 
     //this is just for testing so the different parties share a key
     //in reality the public keys of the servers/auditors should be known 
     //ahead of time and those would be used
@@ -493,6 +493,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
         log.Println(n, err)
         return
     }
+
+    //log.Println("waiting for seed from server A");
     
     //read seed from server A (in preparation for auditing)
     retA := make([]byte, 16)
@@ -552,6 +554,8 @@ func writeRow(threadNum, localIndex int, data []byte, serverA string, s2PublicKe
     
     totalTime += time.Since(startTime)
     //auditing stuff ends here
+
+    //log.Println("waiting for server A to finish");
     
     done := make([]byte, 4)
     for count := 0; count < 4; {

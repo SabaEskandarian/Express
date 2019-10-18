@@ -26,8 +26,6 @@ runTest(receiverPublicKey, receiverPublicKey2);
 function runTest(receiver1pk, receiver2pk){
     time0 = performance.now();
 
-    var dbLayers = 20;
-
     rb = randomBlock(512);
     seed = rb.slice(0,16);
     ctx = initCipher(rb.slice(16,32));
@@ -42,7 +40,7 @@ function runTest(receiver1pk, receiver2pk){
     shareA = evalDPF(ctx, dpfKeys['k0']);
     shareB = evalDPF(ctx, dpfKeys['k1']);
     
-    auditOut = auditDPF(ctx, seed, shareA, shareB, dbLayers);
+    auditOut = auditDPF(ctx, seed, shareA, shareB);
     
     auditormsg = encrypt(receiver2pk, JSON.stringify(auditOut));
 
@@ -372,12 +370,13 @@ function bigIntOps(aShare, bShare, m, p) {
     return retArray;
 }
 
-function auditDPF(ctx, seed, shareA, shareB, dbLayers) {
+function auditDPF(ctx, seed, shareA, shareB) {
     returnBlob = {};
-    returnBlob['vals'] = [];
-    returnBlob['bits'] = [];
+    returnBlob['proofA'] = [];
+    returnBlob['proofB'] = [];
     //since index is hard-coded to 0, bits will be an entirely random vector
     //so we can do it in one shot
+    //TODO: update this to use new auditing
     bitsVector = auditPRF(ctx, seed, 0, -1);
     
     aShare = toBigNum(shareA);

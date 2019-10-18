@@ -300,6 +300,8 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, s2SecretKey *[
 	cVal := make([]byte, 16)
 	C.serverSetupProof(C.ctx[id], (*C.uchar)(&seed[0]), C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&mVal[0]), (*C.uchar)(&cVal[0]))
 
+	//log.Println("waiting for audit info from server A")
+
 	//receive audit info from client through server A, as well as server A audit outputs
 	proofBox := make([]byte, 160+24+box.Overhead)
 	ansA := make([]byte, 96)
@@ -341,7 +343,9 @@ func worker(id int, conn net.Conn, m sync.Mutex, clientPublicKey, s2SecretKey *[
             return
         } 
 
-/* the old auditing part
+	//log.Println("done "+strconv.Itoa(len(auditOutputs)))
+
+/* the old auditing part 
         //run audit part
         C.serverVerify(C.ctx[id], (*C.uchar)(&seed[0]), C.layers, C.dbSize, (*C.uchar)(&vector[0]), (*C.uchar)(&outVector[0]));
         
