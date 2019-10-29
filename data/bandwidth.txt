@@ -14,34 +14,21 @@ Server1Read Server1Write  AuditRead AuditWrite
 4096  4096  16777216  120 2178567 3678500 2794198 1089569 205115  409832
   141
   
-
+----------------------
 Our bandwidth numbers
-formulas
-auditRecv = 88 + 81* log_2(dbSize)
-auditSend = 1
 
-querysize = 1 + 16 + 1 + 18 * 128 + msgSize
+New numbers: these are the relevant ones
 
-serverAWriteTotal = 7276 + 3*msgSize + 130*log_2(dbSize)
+new serverA = 4 + 4 + 4 + 40 + 2*dataTransferSize + 64 + dataTransferSize + 16 + 360 + 200 + 24 + 160 + 16
+ = 892 + 3*(1 + 16 + 1 + 18 * 128 + dataSize)
+ = 892 + 7446
+ = 8338 Bytes (constant for dataSize = 160)
 
-serverAReadRecv = 77+msgSize
-serverAReadSend = 97+2*msgSize
-ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)
-
-64, 256, 1024, 4096, 16384, 65536, 262144, 1048576
-
-
--------
-for web browsing application
-
-comparison baseline is 20kb per web site, go from 50 to 400 sites
-
-for us it's one client write of 1kb and one read of 20kb
-
-ClientWriteTotal  = 4757 + 2*msgSize + 17*log_2(dbSize)= 44,757 + 17*log_2(dbSize)
-client read (bytes): 95 + 2*msgsize = 95 + 2*20,000 = 40, 095
-total: 84,852 + 17*log_2(dbSize)
-
+new client = 1 + 4 + 4 + 2*dataTransferSize + 24+box.Overhead + 16 + 4 + 344+box.overhead
+ = 397 + 2*16 + 2*(1 + 16 + 1 + 18 * 128 + dataSize)
+ = 429 + 2*(2322+160)
+ = 429 + 4964
+ = 5393 Bytes (constant for dataSize = 160)
 ------
 
 
