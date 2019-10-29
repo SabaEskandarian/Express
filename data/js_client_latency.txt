@@ -2,7 +2,9 @@ latency of client js computation on my laptop, Intel(R) Core(TM) i5-2540M CPU @ 
 times are measured in milliseconds on Chromium version Chromium 77.0.3865.90 Arch Linux
 
 new client takes constant time
-50.3 50.6 47.3 52.0 54.2 44.5 53.5 53.2 46.2 59.6 49.1
+50.3 50.6 47.3 52.0 54.2 44.5 53.5 53.2 46.2 59.6
+average: 51.14
+std deviation: 4.42
 
 
 our total script + html + libraries size: 72.5KB

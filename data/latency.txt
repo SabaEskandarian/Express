@@ -4,401 +4,58 @@ setup: all 3 instances in east: instance 1 client, instance 2 serverA, instance 
 
 
 dbsize 100, datasize 1000
-client.go:572: client compute time: 623.816791ms
-client.go:142: write operation time (dataLen 1000): 625.788175ms
-client.go:153: read operation time (dataLen 1000): 41.402845ms
-client.go:572: client compute time: 19.509318ms
-client.go:142: write operation time (dataLen 1000): 21.709648ms
-client.go:153: read operation time (dataLen 1000): 38.739126ms
-client.go:572: client compute time: 19.214643ms
-client.go:142: write operation time (dataLen 1000): 21.163008ms
-client.go:153: read operation time (dataLen 1000): 39.592022ms
-client.go:572: client compute time: 20.458354ms
-client.go:142: write operation time (dataLen 1000): 22.352912ms
-client.go:153: read operation time (dataLen 1000): 39.612521ms
-client.go:572: client compute time: 18.706763ms
-client.go:142: write operation time (dataLen 1000): 20.293723ms
-client.go:153: read operation time (dataLen 1000): 39.755337ms
-client.go:572: client compute time: 18.646183ms
-client.go:142: write operation time (dataLen 1000): 20.507367ms
-client.go:153: read operation time (dataLen 1000): 38.051034ms
-client.go:572: client compute time: 19.351089ms
-client.go:142: write operation time (dataLen 1000): 21.166763ms
-client.go:153: read operation time (dataLen 1000): 39.105685ms
-client.go:572: client compute time: 18.794248ms
-client.go:142: write operation time (dataLen 1000): 20.822231ms
-client.go:153: read operation time (dataLen 1000): 38.539199ms
-client.go:572: client compute time: 18.763462ms
-client.go:142: write operation time (dataLen 1000): 20.66655ms
-client.go:153: read operation time (dataLen 1000): 38.837639ms
-client.go:572: client compute time: 18.900359ms
-client.go:142: write operation time (dataLen 1000): 20.971523ms
-client.go:153: read operation time (dataLen 1000): 39.053955ms
-client.go:572: client compute time: 18.763513ms
-client.go:142: write operation time (dataLen 1000): 20.760285ms
-client.go:153: read operation time (dataLen 1000): 38.657349ms
+average client time: 19.11ms
 client.go:159: average write operation time (dataLen 1000): 21.041401ms
 client.go:160: average read operation time (dataLen 1000): 38.994386ms
+
 dbsize 1000, datasize 1000
-client.go:572: client compute time: 651.095614ms
-client.go:142: write operation time (dataLen 1000): 664.2206ms
-client.go:153: read operation time (dataLen 1000): 56.062822ms
-client.go:572: client compute time: 19.678431ms
-client.go:142: write operation time (dataLen 1000): 32.385062ms
-client.go:153: read operation time (dataLen 1000): 41.23341ms
-client.go:572: client compute time: 21.295471ms
-client.go:142: write operation time (dataLen 1000): 37.038176ms
-client.go:153: read operation time (dataLen 1000): 44.782683ms
-client.go:572: client compute time: 19.954319ms
-client.go:142: write operation time (dataLen 1000): 33.612108ms
-client.go:153: read operation time (dataLen 1000): 40.391975ms
-client.go:572: client compute time: 19.51596ms
-client.go:142: write operation time (dataLen 1000): 32.98291ms
-client.go:153: read operation time (dataLen 1000): 38.949238ms
-client.go:572: client compute time: 20.517066ms
-client.go:142: write operation time (dataLen 1000): 34.400559ms
-client.go:153: read operation time (dataLen 1000): 38.919624ms
-client.go:572: client compute time: 19.370447ms
-client.go:142: write operation time (dataLen 1000): 33.222132ms
-client.go:153: read operation time (dataLen 1000): 38.544313ms
-client.go:572: client compute time: 18.520448ms
-client.go:142: write operation time (dataLen 1000): 32.832366ms
-client.go:153: read operation time (dataLen 1000): 38.715071ms
-client.go:572: client compute time: 21.146031ms
-client.go:142: write operation time (dataLen 1000): 34.006715ms
-client.go:153: read operation time (dataLen 1000): 39.094503ms
-client.go:572: client compute time: 19.908643ms
-client.go:142: write operation time (dataLen 1000): 33.032278ms
-client.go:153: read operation time (dataLen 1000): 42.625864ms
-client.go:572: client compute time: 18.055203ms
-client.go:142: write operation time (dataLen 1000): 30.403429ms
-client.go:153: read operation time (dataLen 1000): 40.13826ms
+average client time: 19.80ms
 client.go:159: average write operation time (dataLen 1000): 33.391573ms
 client.go:160: average read operation time (dataLen 1000): 40.339494ms
+
 dbsize 10000, datasize 1000
-client.go:572: client compute time: 834.404279ms
-client.go:142: write operation time (dataLen 1000): 961.064375ms
-client.go:153: read operation time (dataLen 1000): 71.054837ms
-client.go:572: client compute time: 20.839074ms
-client.go:142: write operation time (dataLen 1000): 151.426977ms
-client.go:153: read operation time (dataLen 1000): 57.150652ms
-client.go:572: client compute time: 20.037791ms
-client.go:142: write operation time (dataLen 1000): 153.669647ms
-client.go:153: read operation time (dataLen 1000): 61.568452ms
-client.go:572: client compute time: 27.882956ms
-client.go:142: write operation time (dataLen 1000): 159.660803ms
-client.go:153: read operation time (dataLen 1000): 54.633819ms
-client.go:572: client compute time: 19.517941ms
-client.go:142: write operation time (dataLen 1000): 151.590861ms
-client.go:153: read operation time (dataLen 1000): 56.607003ms
-client.go:572: client compute time: 18.752606ms
-client.go:142: write operation time (dataLen 1000): 147.598801ms
-client.go:153: read operation time (dataLen 1000): 57.385858ms
-client.go:572: client compute time: 18.810463ms
-client.go:142: write operation time (dataLen 1000): 150.215618ms
-client.go:153: read operation time (dataLen 1000): 56.254353ms
-client.go:572: client compute time: 18.820987ms
-client.go:142: write operation time (dataLen 1000): 150.065016ms
-client.go:153: read operation time (dataLen 1000): 57.524167ms
-client.go:572: client compute time: 19.538425ms
-client.go:142: write operation time (dataLen 1000): 155.327868ms
-client.go:153: read operation time (dataLen 1000): 58.253669ms
-client.go:572: client compute time: 20.194257ms
-client.go:142: write operation time (dataLen 1000): 152.00814ms
-client.go:153: read operation time (dataLen 1000): 59.040728ms
-client.go:572: client compute time: 20.945901ms
-client.go:142: write operation time (dataLen 1000): 153.114436ms
-client.go:153: read operation time (dataLen 1000): 57.7801ms
+average client time: 20.53ms
 client.go:159: average write operation time (dataLen 1000): 152.467816ms
 client.go:160: average read operation time (dataLen 1000): 57.61988ms
+
 dbsize 100000, datasize 1000
-client.go:572: client compute time: 2.351306912s
-client.go:142: write operation time (dataLen 1000): 3.660029919s
-client.go:153: read operation time (dataLen 1000): 211.081393ms
-client.go:572: client compute time: 20.752103ms
-client.go:142: write operation time (dataLen 1000): 1.337263857s
-client.go:153: read operation time (dataLen 1000): 198.690304ms
-client.go:572: client compute time: 21.640245ms
-client.go:142: write operation time (dataLen 1000): 1.348744255s
-client.go:153: read operation time (dataLen 1000): 200.001287ms
-client.go:572: client compute time: 19.457707ms
-client.go:142: write operation time (dataLen 1000): 1.342776781s
-client.go:153: read operation time (dataLen 1000): 230.051292ms
-client.go:572: client compute time: 68.353646ms
-client.go:142: write operation time (dataLen 1000): 1.371435328s
-client.go:153: read operation time (dataLen 1000): 200.583885ms
-client.go:572: client compute time: 18.451743ms
-client.go:142: write operation time (dataLen 1000): 1.32498148s
-client.go:153: read operation time (dataLen 1000): 217.004207ms
-client.go:572: client compute time: 19.113646ms
-client.go:142: write operation time (dataLen 1000): 1.400737621s
-client.go:153: read operation time (dataLen 1000): 204.324571ms
-client.go:572: client compute time: 19.015427ms
-client.go:142: write operation time (dataLen 1000): 1.298368405s
-client.go:153: read operation time (dataLen 1000): 200.893541ms
-client.go:572: client compute time: 19.89364ms
-client.go:142: write operation time (dataLen 1000): 1.302266071s
-client.go:153: read operation time (dataLen 1000): 205.321063ms
-client.go:572: client compute time: 19.519497ms
-client.go:142: write operation time (dataLen 1000): 1.284271064s
-client.go:153: read operation time (dataLen 1000): 208.219266ms
-client.go:572: client compute time: 20.400727ms
-client.go:142: write operation time (dataLen 1000): 1.293471948s
-client.go:153: read operation time (dataLen 1000): 209.641808ms
+average client time: 24.66ms
 client.go:159: average write operation time (dataLen 1000): 1.330431681s
 client.go:160: average read operation time (dataLen 1000): 207.473122ms
+
 dbsize 500000, datasize 1000
-client.go:572: client compute time: 9.137842836s
-client.go:142: write operation time (dataLen 1000): 15.969864582s
-client.go:153: read operation time (dataLen 1000): 832.407836ms
-client.go:572: client compute time: 21.083229ms
-client.go:142: write operation time (dataLen 1000): 6.8225154s
-client.go:153: read operation time (dataLen 1000): 818.459225ms
-client.go:572: client compute time: 22.259575ms
-client.go:142: write operation time (dataLen 1000): 6.848757461s
-client.go:153: read operation time (dataLen 1000): 823.93413ms
-client.go:572: client compute time: 20.660592ms
-client.go:142: write operation time (dataLen 1000): 6.859897837s
-client.go:153: read operation time (dataLen 1000): 816.011013ms
-client.go:572: client compute time: 20.567872ms
-client.go:142: write operation time (dataLen 1000): 6.86591403s
-client.go:153: read operation time (dataLen 1000): 816.778055ms
-client.go:572: client compute time: 20.017453ms
-client.go:142: write operation time (dataLen 1000): 6.846670184s
-client.go:153: read operation time (dataLen 1000): 821.724025ms
-client.go:572: client compute time: 20.99924ms
-client.go:142: write operation time (dataLen 1000): 7.26499661s
-client.go:153: read operation time (dataLen 1000): 841.832055ms
-client.go:572: client compute time: 20.584706ms
-client.go:142: write operation time (dataLen 1000): 6.584144067s
-client.go:153: read operation time (dataLen 1000): 837.716032ms
-client.go:572: client compute time: 21.907839ms
-client.go:142: write operation time (dataLen 1000): 6.596790653s
-client.go:153: read operation time (dataLen 1000): 848.199846ms
-client.go:572: client compute time: 21.244712ms
-client.go:142: write operation time (dataLen 1000): 6.611430678s
-client.go:153: read operation time (dataLen 1000): 843.157287ms
-client.go:572: client compute time: 20.714681ms
-client.go:142: write operation time (dataLen 1000): 6.535281407s
-client.go:153: read operation time (dataLen 1000): 841.088344ms
+average client time: 21.00ms
 client.go:159: average write operation time (dataLen 1000): 6.783639832s
 client.go:160: average read operation time (dataLen 1000): 830.890001ms
+
 dbsize 1000000, datasize 1000
-client.go:572: client compute time: 17.041215624s
-client.go:142: write operation time (dataLen 1000): 30.155910928s
-client.go:153: read operation time (dataLen 1000): 1.582060772s
-client.go:572: client compute time: 19.323971ms
-client.go:142: write operation time (dataLen 1000): 13.185620469s
-client.go:153: read operation time (dataLen 1000): 1.578155622s
-client.go:572: client compute time: 20.026123ms
-client.go:142: write operation time (dataLen 1000): 13.15645773s
-client.go:153: read operation time (dataLen 1000): 1.555094897s
-client.go:572: client compute time: 20.586219ms
-client.go:142: write operation time (dataLen 1000): 13.59138973s
-client.go:153: read operation time (dataLen 1000): 1.572513779s
-client.go:572: client compute time: 20.619285ms
-client.go:142: write operation time (dataLen 1000): 14.321048021s
-client.go:153: read operation time (dataLen 1000): 1.625764266s
-client.go:572: client compute time: 21.124738ms
-client.go:142: write operation time (dataLen 1000): 13.083035382s
-client.go:153: read operation time (dataLen 1000): 1.631069503s
-client.go:572: client compute time: 20.305528ms
-client.go:142: write operation time (dataLen 1000): 13.130983108s
-client.go:153: read operation time (dataLen 1000): 1.607906173s
-client.go:572: client compute time: 20.874073ms
-client.go:142: write operation time (dataLen 1000): 13.168947129s
-client.go:153: read operation time (dataLen 1000): 2.713412054s
-client.go:572: client compute time: 18.681101ms
-client.go:142: write operation time (dataLen 1000): 13.652233493s
-client.go:153: read operation time (dataLen 1000): 1.624467195s
-client.go:572: client compute time: 19.492536ms
-client.go:142: write operation time (dataLen 1000): 13.735055689s
-client.go:153: read operation time (dataLen 1000): 1.655946955s
-client.go:572: client compute time: 19.073649ms
-client.go:142: write operation time (dataLen 1000): 12.346509275s
-client.go:153: read operation time (dataLen 1000): 1.644372561s
+average client time: 20.01ms
 client.go:159: average write operation time (dataLen 1000): 13.337128002s
 client.go:160: average read operation time (dataLen 1000): 1.7208703s
 
 
 dbsize 100, datasize 4000
-client.go:572: client compute time: 625.454963ms
-client.go:142: write operation time (dataLen 4000): 629.045719ms
-client.go:153: read operation time (dataLen 4000): 50.185632ms
-client.go:572: client compute time: 19.478432ms
-client.go:142: write operation time (dataLen 4000): 22.646027ms
-client.go:153: read operation time (dataLen 4000): 37.833028ms
-client.go:572: client compute time: 18.303066ms
-client.go:142: write operation time (dataLen 4000): 21.106124ms
-client.go:153: read operation time (dataLen 4000): 40.789418ms
-client.go:572: client compute time: 18.050505ms
-client.go:142: write operation time (dataLen 4000): 20.757534ms
-client.go:153: read operation time (dataLen 4000): 37.826076ms
-client.go:572: client compute time: 18.446678ms
-client.go:142: write operation time (dataLen 4000): 21.849894ms
-client.go:153: read operation time (dataLen 4000): 38.393329ms
-client.go:572: client compute time: 18.371703ms
-client.go:142: write operation time (dataLen 4000): 21.145862ms
-client.go:153: read operation time (dataLen 4000): 37.11254ms
-client.go:572: client compute time: 19.358111ms
-client.go:142: write operation time (dataLen 4000): 23.369245ms
-client.go:153: read operation time (dataLen 4000): 39.182462ms
-client.go:572: client compute time: 18.387506ms
-client.go:142: write operation time (dataLen 4000): 21.806561ms
-client.go:153: read operation time (dataLen 4000): 40.959038ms
-client.go:572: client compute time: 18.598676ms
-client.go:142: write operation time (dataLen 4000): 21.284894ms
-client.go:153: read operation time (dataLen 4000): 39.83154ms
-client.go:572: client compute time: 17.82277ms
-client.go:142: write operation time (dataLen 4000): 21.189752ms
-client.go:153: read operation time (dataLen 4000): 38.272483ms
-client.go:572: client compute time: 19.388267ms
-client.go:142: write operation time (dataLen 4000): 22.094725ms
-client.go:153: read operation time (dataLen 4000): 38.393018ms
+average client time: 18.62ms
 client.go:159: average write operation time (dataLen 4000): 21.725061ms
 client.go:160: average read operation time (dataLen 4000): 38.859293ms
+
 dbsize 1000, datasize 4000
-client.go:572: client compute time: 716.774465ms
-client.go:142: write operation time (dataLen 4000): 737.168727ms
-client.go:153: read operation time (dataLen 4000): 60.113882ms
-client.go:572: client compute time: 20.537426ms
-client.go:142: write operation time (dataLen 4000): 44.8407ms
-client.go:153: read operation time (dataLen 4000): 45.133487ms
-client.go:572: client compute time: 21.681327ms
-client.go:142: write operation time (dataLen 4000): 46.382086ms
-client.go:153: read operation time (dataLen 4000): 47.696262ms
-client.go:572: client compute time: 20.926923ms
-client.go:142: write operation time (dataLen 4000): 46.25698ms
-client.go:153: read operation time (dataLen 4000): 45.584446ms
-client.go:572: client compute time: 18.908973ms
-client.go:142: write operation time (dataLen 4000): 43.923539ms
-client.go:153: read operation time (dataLen 4000): 57.947219ms
-client.go:572: client compute time: 19.670201ms
-client.go:142: write operation time (dataLen 4000): 43.744558ms
-client.go:153: read operation time (dataLen 4000): 44.510762ms
-client.go:572: client compute time: 18.888595ms
-client.go:142: write operation time (dataLen 4000): 41.969524ms
-client.go:153: read operation time (dataLen 4000): 45.968082ms
-client.go:572: client compute time: 18.553474ms
-client.go:142: write operation time (dataLen 4000): 40.93359ms
-client.go:153: read operation time (dataLen 4000): 43.281957ms
-client.go:572: client compute time: 18.46083ms
-client.go:142: write operation time (dataLen 4000): 43.766529ms
-client.go:153: read operation time (dataLen 4000): 45.654029ms
-client.go:572: client compute time: 19.059445ms
-client.go:142: write operation time (dataLen 4000): 44.679874ms
-client.go:153: read operation time (dataLen 4000): 46.516797ms
-client.go:572: client compute time: 19.122598ms
-client.go:142: write operation time (dataLen 4000): 44.47938ms
-client.go:153: read operation time (dataLen 4000): 54.215497ms
+average client time: 19.58ms
 client.go:159: average write operation time (dataLen 4000): 44.097676ms
 client.go:160: average read operation time (dataLen 4000): 47.650853ms
+
 dbsize 10000, datasize 4000
-client.go:572: client compute time: 1.232190538s
-client.go:142: write operation time (dataLen 4000): 1.471203917s
-client.go:153: read operation time (dataLen 4000): 109.478524ms
-client.go:572: client compute time: 20.540158ms
-client.go:142: write operation time (dataLen 4000): 263.193846ms
-client.go:153: read operation time (dataLen 4000): 96.556861ms
-client.go:572: client compute time: 20.570752ms
-client.go:142: write operation time (dataLen 4000): 263.779241ms
-client.go:153: read operation time (dataLen 4000): 101.042897ms
-client.go:572: client compute time: 20.315996ms
-client.go:142: write operation time (dataLen 4000): 257.83847ms
-client.go:153: read operation time (dataLen 4000): 96.028598ms
-client.go:572: client compute time: 21.283172ms
-client.go:142: write operation time (dataLen 4000): 263.365768ms
-client.go:153: read operation time (dataLen 4000): 96.854391ms
-client.go:572: client compute time: 20.88468ms
-client.go:142: write operation time (dataLen 4000): 263.06144ms
-client.go:153: read operation time (dataLen 4000): 97.613329ms
-client.go:572: client compute time: 20.472996ms
-client.go:142: write operation time (dataLen 4000): 264.079991ms
-client.go:153: read operation time (dataLen 4000): 99.659168ms
-client.go:572: client compute time: 19.631098ms
-client.go:142: write operation time (dataLen 4000): 262.361289ms
-client.go:153: read operation time (dataLen 4000): 98.204732ms
-client.go:572: client compute time: 20.027819ms
-client.go:142: write operation time (dataLen 4000): 278.512245ms
-client.go:153: read operation time (dataLen 4000): 95.422592ms
-client.go:572: client compute time: 18.362651ms
-client.go:142: write operation time (dataLen 4000): 259.915165ms
-client.go:153: read operation time (dataLen 4000): 95.957977ms
-client.go:572: client compute time: 18.494699ms
-client.go:142: write operation time (dataLen 4000): 260.915243ms
-client.go:153: read operation time (dataLen 4000): 102.13053ms
+average client time: 20.06ms
 client.go:159: average write operation time (dataLen 4000): 263.702269ms
 client.go:160: average read operation time (dataLen 4000): 97.947107ms
+
 dbsize 100000, datasize 4000
-client.go:572: client compute time: 5.776781022s
-client.go:142: write operation time (dataLen 4000): 8.194895774s
-client.go:153: read operation time (dataLen 4000): 602.735061ms
-client.go:572: client compute time: 20.069924ms
-client.go:142: write operation time (dataLen 4000): 2.423696045s
-client.go:153: read operation time (dataLen 4000): 589.094345ms
-client.go:572: client compute time: 21.001607ms
-client.go:142: write operation time (dataLen 4000): 2.473246405s
-client.go:153: read operation time (dataLen 4000): 587.307192ms
-client.go:572: client compute time: 19.752238ms
-client.go:142: write operation time (dataLen 4000): 2.446780341s
-client.go:153: read operation time (dataLen 4000): 585.85941ms
-client.go:572: client compute time: 21.059393ms
-client.go:142: write operation time (dataLen 4000): 2.434551149s
-client.go:153: read operation time (dataLen 4000): 586.731187ms
-client.go:572: client compute time: 19.419171ms
-client.go:142: write operation time (dataLen 4000): 2.417323842s
-client.go:153: read operation time (dataLen 4000): 583.468098ms
-client.go:572: client compute time: 20.554354ms
-client.go:142: write operation time (dataLen 4000): 2.896419639s
-client.go:153: read operation time (dataLen 4000): 601.083972ms
-client.go:572: client compute time: 19.379808ms
-client.go:142: write operation time (dataLen 4000): 2.343190559s
-client.go:153: read operation time (dataLen 4000): 654.666699ms
-client.go:572: client compute time: 22.392917ms
-client.go:142: write operation time (dataLen 4000): 2.633107936s
-client.go:153: read operation time (dataLen 4000): 626.055142ms
-client.go:572: client compute time: 18.720478ms
-client.go:142: write operation time (dataLen 4000): 2.300212381s
-client.go:153: read operation time (dataLen 4000): 629.096695ms
-client.go:572: client compute time: 21.170687ms
-client.go:142: write operation time (dataLen 4000): 2.284164909s
-client.go:153: read operation time (dataLen 4000): 623.408042ms
+average client time: 20.35ms
 client.go:159: average write operation time (dataLen 4000): 2.46526932s
 client.go:160: average read operation time (dataLen 4000): 606.677078ms
+
 dbsize 500000, datasize 4000
-client.go:572: client compute time: 25.117924776s
-client.go:142: write operation time (dataLen 4000): 37.227161845s
-client.go:153: read operation time (dataLen 4000): 2.760682092s
-client.go:572: client compute time: 19.998018ms
-client.go:142: write operation time (dataLen 4000): 12.157209335s
-client.go:153: read operation time (dataLen 4000): 2.746013776s
-client.go:572: client compute time: 19.507244ms
-client.go:142: write operation time (dataLen 4000): 14.389830166s
-client.go:153: read operation time (dataLen 4000): 2.974751752s
-client.go:572: client compute time: 20.086153ms
-client.go:142: write operation time (dataLen 4000): 12.604370387s
-client.go:153: read operation time (dataLen 4000): 3.005314705s
-client.go:572: client compute time: 19.514645ms
-client.go:142: write operation time (dataLen 4000): 13.365423577s
-client.go:153: read operation time (dataLen 4000): 2.853054782s
-client.go:572: client compute time: 20.027561ms
-client.go:142: write operation time (dataLen 4000): 15.450508813s
-client.go:153: read operation time (dataLen 4000): 2.864039053s
-client.go:572: client compute time: 20.560752ms
-client.go:142: write operation time (dataLen 4000): 12.798804735s
-client.go:153: read operation time (dataLen 4000): 2.869788326s
-client.go:572: client compute time: 20.975289ms
-client.go:142: write operation time (dataLen 4000): 12.872626619s
-client.go:153: read operation time (dataLen 4000): 2.908437567s
-client.go:572: client compute time: 19.938035ms
-client.go:142: write operation time (dataLen 4000): 13.118448398s
-client.go:153: read operation time (dataLen 4000): 2.904523856s
-client.go:572: client compute time: 20.344035ms
-client.go:142: write operation time (dataLen 4000): 12.988554506s
-client.go:153: read operation time (dataLen 4000): 4.753987026s
-client.go:572: client compute time: 18.707879ms
-client.go:142: write operation time (dataLen 4000): 11.647175608s
-client.go:153: read operation time (dataLen 4000): 2.955842957s
+average client time: 19.97ms
 client.go:159: average write operation time (dataLen 4000): 13.139295214s
 client.go:160: average read operation time (dataLen 4000): 3.08357538s
 dbsize 1000000, datasize 4000
@@ -406,309 +63,54 @@ dbsize 1000000, datasize 4000
 
 
 dbsize 100, datasize 16000
-client.go:572: client compute time: 687.50283ms
-client.go:142: write operation time (dataLen 16000): 694.01692ms
-client.go:153: read operation time (dataLen 16000): 57.380478ms
-client.go:572: client compute time: 19.281661ms
-client.go:142: write operation time (dataLen 16000): 27.998433ms
-client.go:153: read operation time (dataLen 16000): 42.137832ms
-client.go:572: client compute time: 18.837551ms
-client.go:142: write operation time (dataLen 16000): 24.678396ms
-client.go:153: read operation time (dataLen 16000): 40.692878ms
-client.go:572: client compute time: 18.705815ms
-client.go:142: write operation time (dataLen 16000): 26.540344ms
-client.go:153: read operation time (dataLen 16000): 42.265967ms
-client.go:572: client compute time: 19.983762ms
-client.go:142: write operation time (dataLen 16000): 27.672815ms
-client.go:153: read operation time (dataLen 16000): 44.453158ms
-client.go:572: client compute time: 19.325011ms
-client.go:142: write operation time (dataLen 16000): 25.162809ms
-client.go:153: read operation time (dataLen 16000): 40.119615ms
-client.go:572: client compute time: 18.911773ms
-client.go:142: write operation time (dataLen 16000): 24.692545ms
-client.go:153: read operation time (dataLen 16000): 39.977751ms
-client.go:572: client compute time: 19.267355ms
-client.go:142: write operation time (dataLen 16000): 27.534661ms
-client.go:153: read operation time (dataLen 16000): 41.123115ms
-client.go:572: client compute time: 18.428678ms
-client.go:142: write operation time (dataLen 16000): 24.789974ms
-client.go:153: read operation time (dataLen 16000): 43.306849ms
-client.go:572: client compute time: 19.266556ms
-client.go:142: write operation time (dataLen 16000): 25.555821ms
-client.go:153: read operation time (dataLen 16000): 40.960614ms
-client.go:572: client compute time: 18.657015ms
-client.go:142: write operation time (dataLen 16000): 25.087805ms
-client.go:153: read operation time (dataLen 16000): 43.357301ms
+average client time: 19.07ms
 client.go:159: average write operation time (dataLen 16000): 25.97136ms
 client.go:160: average read operation time (dataLen 16000): 41.839508ms
+
 dbsize 1000, datasize 16000
-client.go:572: client compute time: 822.418506ms
-client.go:142: write operation time (dataLen 16000): 886.26211ms
-client.go:153: read operation time (dataLen 16000): 76.893979ms
-client.go:572: client compute time: 22.625091ms
-client.go:142: write operation time (dataLen 16000): 89.930551ms
-client.go:153: read operation time (dataLen 16000): 63.453584ms
-client.go:572: client compute time: 21.60604ms
-client.go:142: write operation time (dataLen 16000): 92.718125ms
-client.go:153: read operation time (dataLen 16000): 61.876708ms
-client.go:572: client compute time: 20.142653ms
-client.go:142: write operation time (dataLen 16000): 80.746934ms
-client.go:153: read operation time (dataLen 16000): 62.242802ms
-client.go:572: client compute time: 18.660852ms
-client.go:142: write operation time (dataLen 16000): 86.101732ms
-client.go:153: read operation time (dataLen 16000): 61.035732ms
-client.go:572: client compute time: 19.028921ms
-client.go:142: write operation time (dataLen 16000): 86.311714ms
-client.go:153: read operation time (dataLen 16000): 61.913978ms
-client.go:572: client compute time: 19.867089ms
-client.go:142: write operation time (dataLen 16000): 87.270813ms
-client.go:153: read operation time (dataLen 16000): 61.57122ms
-client.go:572: client compute time: 20.744691ms
-client.go:142: write operation time (dataLen 16000): 89.858483ms
-client.go:153: read operation time (dataLen 16000): 65.383182ms
-client.go:572: client compute time: 19.483448ms
-client.go:142: write operation time (dataLen 16000): 89.308852ms
-client.go:153: read operation time (dataLen 16000): 63.532254ms
-client.go:572: client compute time: 19.625658ms
-client.go:142: write operation time (dataLen 16000): 87.138681ms
-client.go:153: read operation time (dataLen 16000): 62.098135ms
-client.go:572: client compute time: 19.435864ms
-client.go:142: write operation time (dataLen 16000): 95.27401ms
-client.go:153: read operation time (dataLen 16000): 64.779732ms
+average client time: 20.12ms
 client.go:159: average write operation time (dataLen 16000): 88.465989ms
 client.go:160: average read operation time (dataLen 16000): 62.788732ms
+
 dbsize 10000, datasize 16000
-client.go:572: client compute time: 1.843394358s
-client.go:142: write operation time (dataLen 16000): 2.505286564s
-client.go:153: read operation time (dataLen 16000): 314.387872ms
-client.go:572: client compute time: 48.580453ms
-client.go:142: write operation time (dataLen 16000): 714.857206ms
-client.go:153: read operation time (dataLen 16000): 258.740036ms
-client.go:572: client compute time: 18.759474ms
-client.go:142: write operation time (dataLen 16000): 642.395085ms
-client.go:153: read operation time (dataLen 16000): 246.717469ms
-client.go:572: client compute time: 20.709888ms
-client.go:142: write operation time (dataLen 16000): 682.743432ms
-client.go:153: read operation time (dataLen 16000): 246.82563ms
-client.go:572: client compute time: 20.02724ms
-client.go:142: write operation time (dataLen 16000): 679.648248ms
-client.go:153: read operation time (dataLen 16000): 246.170858ms
-client.go:572: client compute time: 21.112257ms
-client.go:142: write operation time (dataLen 16000): 679.497471ms
-client.go:153: read operation time (dataLen 16000): 248.084891ms
-client.go:572: client compute time: 20.181322ms
-client.go:142: write operation time (dataLen 16000): 708.474113ms
-client.go:153: read operation time (dataLen 16000): 249.424703ms
-client.go:572: client compute time: 19.637057ms
-client.go:142: write operation time (dataLen 16000): 567.449792ms
-client.go:153: read operation time (dataLen 16000): 248.146093ms
-client.go:572: client compute time: 19.966918ms
-client.go:142: write operation time (dataLen 16000): 693.472386ms
-client.go:153: read operation time (dataLen 16000): 249.940148ms
-client.go:572: client compute time: 19.811157ms
-client.go:142: write operation time (dataLen 16000): 678.268002ms
-client.go:153: read operation time (dataLen 16000): 247.852681ms
-client.go:572: client compute time: 20.30439ms
-client.go:142: write operation time (dataLen 16000): 678.628215ms
-client.go:153: read operation time (dataLen 16000): 247.465973ms
+average client time: 22.91ms
 client.go:159: average write operation time (dataLen 16000): 672.543395ms
 client.go:160: average read operation time (dataLen 16000): 248.936848ms
+
 dbsize 100000, datasize 16000
-client.go:572: client compute time: 13.430532838s
-client.go:142: write operation time (dataLen 16000): 20.024292775s
-client.go:153: read operation time (dataLen 16000): 2.088318169s
-client.go:572: client compute time: 20.6971ms
-client.go:142: write operation time (dataLen 16000): 6.66326297s
-client.go:153: read operation time (dataLen 16000): 2.126090873s
-client.go:572: client compute time: 21.155503ms
-client.go:142: write operation time (dataLen 16000): 6.677776572s
-client.go:153: read operation time (dataLen 16000): 2.094057934s
-client.go:572: client compute time: 20.079798ms
-client.go:142: write operation time (dataLen 16000): 6.615317003s
-client.go:153: read operation time (dataLen 16000): 2.089727685s
-client.go:572: client compute time: 20.173294ms
-client.go:142: write operation time (dataLen 16000): 6.577411231s
-client.go:153: read operation time (dataLen 16000): 2.08389648s
-client.go:572: client compute time: 19.744692ms
-client.go:142: write operation time (dataLen 16000): 6.608692556s
-client.go:153: read operation time (dataLen 16000): 2.21308531s
-client.go:572: client compute time: 20.087956ms
-client.go:142: write operation time (dataLen 16000): 6.627227577s
-client.go:153: read operation time (dataLen 16000): 2.184863754s
-client.go:572: client compute time: 19.707257ms
-client.go:142: write operation time (dataLen 16000): 6.636261538s
-client.go:153: read operation time (dataLen 16000): 2.187368386s
-client.go:572: client compute time: 20.225316ms
-client.go:142: write operation time (dataLen 16000): 6.717016033s
-client.go:153: read operation time (dataLen 16000): 2.647592408s
-client.go:572: client compute time: 19.913619ms
-client.go:142: write operation time (dataLen 16000): 6.757817502s
-client.go:153: read operation time (dataLen 16000): 2.31463059s
-client.go:572: client compute time: 18.766732ms
-client.go:142: write operation time (dataLen 16000): 6.164532042s
-client.go:153: read operation time (dataLen 16000): 2.303743082s
+average client time: 20.06ms
 client.go:159: average write operation time (dataLen 16000): 6.604531502s
 client.go:160: average read operation time (dataLen 16000): 2.22450565s
+
 dbsize 500000, datasize 16000
-client.go:572: client compute time: 32.622798621s
-client.go:142: write operation time (dataLen 16000): 1m19.927028302s
-client.go:153: read operation time (dataLen 16000): 11.479036178s
-client.go:572: client compute time: 19.383801ms
-client.go:142: write operation time (dataLen 16000): 40.593852416s
-client.go:153: read operation time (dataLen 16000): 10.630273132s
-client.go:572: client compute time: 20.9182ms
-client.go:142: write operation time (dataLen 16000): 36.741661983s
-client.go:153: read operation time (dataLen 16000): 11.702311843s
+19.383801ms
+20.9182ms
 out of memory
 dbsize 1000000, datasize 16000
 
 
 
 dbsize 100, datasize 32000
-client.go:572: client compute time: 685.230703ms
-client.go:142: write operation time (dataLen 32000): 695.497901ms
-client.go:153: read operation time (dataLen 32000): 61.096189ms
-client.go:572: client compute time: 18.753747ms
-client.go:142: write operation time (dataLen 32000): 32.660176ms
-client.go:153: read operation time (dataLen 32000): 44.321419ms
-client.go:572: client compute time: 21.180454ms
-client.go:142: write operation time (dataLen 32000): 35.591415ms
-client.go:153: read operation time (dataLen 32000): 46.360501ms
-client.go:572: client compute time: 19.475804ms
-client.go:142: write operation time (dataLen 32000): 33.387178ms
-client.go:153: read operation time (dataLen 32000): 46.359062ms
-client.go:572: client compute time: 19.05177ms
-client.go:142: write operation time (dataLen 32000): 32.65676ms
-client.go:153: read operation time (dataLen 32000): 45.889921ms
-client.go:572: client compute time: 21.30544ms
-client.go:142: write operation time (dataLen 32000): 31.933542ms
-client.go:153: read operation time (dataLen 32000): 45.023822ms
-client.go:572: client compute time: 18.493902ms
-client.go:142: write operation time (dataLen 32000): 29.337373ms
-client.go:153: read operation time (dataLen 32000): 44.617161ms
-client.go:572: client compute time: 18.554515ms
-client.go:142: write operation time (dataLen 32000): 33.00038ms
-client.go:153: read operation time (dataLen 32000): 42.503271ms
-client.go:572: client compute time: 18.769128ms
-client.go:142: write operation time (dataLen 32000): 33.361198ms
-client.go:153: read operation time (dataLen 32000): 42.582208ms
-client.go:572: client compute time: 18.64224ms
-client.go:142: write operation time (dataLen 32000): 31.941467ms
-client.go:153: read operation time (dataLen 32000): 42.229012ms
-client.go:572: client compute time: 18.085173ms
-client.go:142: write operation time (dataLen 32000): 33.003133ms
-client.go:153: read operation time (dataLen 32000): 45.365195ms
+average client time: 19.23ms
 client.go:159: average write operation time (dataLen 32000): 32.687262ms
 client.go:160: average read operation time (dataLen 32000): 44.525157ms
+
 dbsize 1000, datasize 32000
-client.go:572: client compute time: 899.083314ms
-client.go:142: write operation time (dataLen 32000): 1.021755672s
-client.go:153: read operation time (dataLen 32000): 97.162502ms
-client.go:572: client compute time: 20.234654ms
-client.go:142: write operation time (dataLen 32000): 144.289471ms
-client.go:153: read operation time (dataLen 32000): 84.94389ms
-client.go:572: client compute time: 19.760928ms
-client.go:142: write operation time (dataLen 32000): 147.467716ms
-client.go:153: read operation time (dataLen 32000): 82.44516ms
-client.go:572: client compute time: 19.905458ms
-client.go:142: write operation time (dataLen 32000): 144.46597ms
-client.go:153: read operation time (dataLen 32000): 87.827917ms
-client.go:572: client compute time: 20.161863ms
-client.go:142: write operation time (dataLen 32000): 141.881265ms
-client.go:153: read operation time (dataLen 32000): 84.410334ms
-client.go:572: client compute time: 21.305012ms
-client.go:142: write operation time (dataLen 32000): 141.984561ms
-client.go:153: read operation time (dataLen 32000): 85.968853ms
-client.go:572: client compute time: 19.554377ms
-client.go:142: write operation time (dataLen 32000): 152.88707ms
-client.go:153: read operation time (dataLen 32000): 87.740345ms
-client.go:572: client compute time: 19.678992ms
-client.go:142: write operation time (dataLen 32000): 142.961007ms
-client.go:153: read operation time (dataLen 32000): 84.414366ms
-client.go:572: client compute time: 21.470895ms
-client.go:142: write operation time (dataLen 32000): 149.8204ms
-client.go:153: read operation time (dataLen 32000): 81.964287ms
-client.go:572: client compute time: 20.297425ms
-client.go:142: write operation time (dataLen 32000): 142.558996ms
-client.go:153: read operation time (dataLen 32000): 95.040862ms
-client.go:572: client compute time: 19.470557ms
-client.go:142: write operation time (dataLen 32000): 155.143081ms
-client.go:153: read operation time (dataLen 32000): 83.768835ms
+average client time: 20.18ms
 client.go:159: average write operation time (dataLen 32000): 146.345953ms
 client.go:160: average read operation time (dataLen 32000): 85.852484ms
+
 dbsize 10000, datasize 32000
-client.go:572: client compute time: 2.611885388s
-client.go:142: write operation time (dataLen 32000): 4.109255461s
-client.go:153: read operation time (dataLen 32000): 528.599451ms
-client.go:572: client compute time: 19.36418ms
-client.go:142: write operation time (dataLen 32000): 1.420412891s
-client.go:153: read operation time (dataLen 32000): 465.067374ms
-client.go:572: client compute time: 21.778426ms
-client.go:142: write operation time (dataLen 32000): 1.377243805s
-client.go:153: read operation time (dataLen 32000): 443.4578ms
-client.go:572: client compute time: 20.180949ms
-client.go:142: write operation time (dataLen 32000): 1.414813162s
-client.go:153: read operation time (dataLen 32000): 454.131393ms
-client.go:572: client compute time: 19.991792ms
-client.go:142: write operation time (dataLen 32000): 1.692788556s
-client.go:153: read operation time (dataLen 32000): 464.955954ms
-client.go:572: client compute time: 22.818306ms
-client.go:142: write operation time (dataLen 32000): 1.514738533s
-client.go:153: read operation time (dataLen 32000): 462.041827ms
-client.go:572: client compute time: 21.378992ms
-client.go:142: write operation time (dataLen 32000): 1.431598649s
-client.go:153: read operation time (dataLen 32000): 464.127817ms
-client.go:572: client compute time: 20.449099ms
-client.go:142: write operation time (dataLen 32000): 1.518389809s
-client.go:153: read operation time (dataLen 32000): 448.339292ms
-client.go:572: client compute time: 19.600311ms
-client.go:142: write operation time (dataLen 32000): 1.723113598s
-client.go:153: read operation time (dataLen 32000): 448.806018ms
-client.go:572: client compute time: 19.978957ms
-client.go:142: write operation time (dataLen 32000): 1.373750438s
-client.go:153: read operation time (dataLen 32000): 470.502728ms
-client.go:572: client compute time: 19.288494ms
-client.go:142: write operation time (dataLen 32000): 1.274136348s
-client.go:153: read operation time (dataLen 32000): 461.374124ms
+average client time: 20.48ms
 client.go:159: average write operation time (dataLen 32000): 1.474098578s
 client.go:160: average read operation time (dataLen 32000): 458.280432ms
+
 dbsize 100000, datasize 32000
 switched numthreads to 4 here to save memory
-client.go:572: client compute time: 9.521233659s
-client.go:142: write operation time (dataLen 32000): 21.751741539s
-client.go:153: read operation time (dataLen 32000): 4.254209622s
-client.go:572: client compute time: 19.902998ms
-client.go:142: write operation time (dataLen 32000): 12.436049773s
-client.go:153: read operation time (dataLen 32000): 4.337568686s
-client.go:572: client compute time: 20.417653ms
-client.go:142: write operation time (dataLen 32000): 12.067630965s
-client.go:153: read operation time (dataLen 32000): 4.321970257s
-client.go:572: client compute time: 18.716184ms
-client.go:142: write operation time (dataLen 32000): 11.528744792s
-client.go:153: read operation time (dataLen 32000): 4.442483937s
-client.go:572: client compute time: 18.943109ms
-client.go:142: write operation time (dataLen 32000): 9.886879955s
-client.go:153: read operation time (dataLen 32000): 4.501093563s
-client.go:572: client compute time: 19.353679ms
-client.go:142: write operation time (dataLen 32000): 11.108501652s
-client.go:153: read operation time (dataLen 32000): 4.457492187s
-client.go:572: client compute time: 19.001595ms
-client.go:142: write operation time (dataLen 32000): 8.021986709s
-client.go:153: read operation time (dataLen 32000): 4.56124675s
-client.go:572: client compute time: 19.123188ms
-client.go:142: write operation time (dataLen 32000): 8.143291419s
-client.go:153: read operation time (dataLen 32000): 4.458959545s
-client.go:572: client compute time: 19.003142ms
-client.go:142: write operation time (dataLen 32000): 8.093346054s
-client.go:153: read operation time (dataLen 32000): 4.481659789s
-client.go:572: client compute time: 18.868916ms
-client.go:142: write operation time (dataLen 32000): 7.955341505s
-client.go:153: read operation time (dataLen 32000): 4.430458226s
-client.go:572: client compute time: 18.721954ms
-client.go:142: write operation time (dataLen 32000): 7.921552244s
-client.go:153: read operation time (dataLen 32000): 4.485095872s
+average client time: 19.21ms
 client.go:159: average write operation time (dataLen 32000): 9.716332506s
 client.go:160: average read operation time (dataLen 32000): 4.447802881s
+
 dbsize 500000, datasize 32000
 
 dbsize 1000000, datasize 32000
@@ -716,203 +118,26 @@ dbsize 1000000, datasize 32000
 
 
 dbsize 100, datasize 64000
-client.go:572: client compute time: 129.31607ms
-client.go:142: write operation time (dataLen 64000): 151.863471ms
-client.go:153: read operation time (dataLen 64000): 57.332511ms
-client.go:572: client compute time: 20.990136ms
-client.go:142: write operation time (dataLen 64000): 47.809457ms
-client.go:153: read operation time (dataLen 64000): 51.277349ms
-client.go:572: client compute time: 18.835453ms
-client.go:142: write operation time (dataLen 64000): 43.086029ms
-client.go:153: read operation time (dataLen 64000): 48.657241ms
-client.go:572: client compute time: 19.425858ms
-client.go:142: write operation time (dataLen 64000): 40.109218ms
-client.go:153: read operation time (dataLen 64000): 49.734011ms
-client.go:572: client compute time: 18.575384ms
-client.go:142: write operation time (dataLen 64000): 40.47064ms
-client.go:153: read operation time (dataLen 64000): 48.162452ms
-client.go:572: client compute time: 19.797468ms
-client.go:142: write operation time (dataLen 64000): 37.404433ms
-client.go:153: read operation time (dataLen 64000): 49.376327ms
-client.go:572: client compute time: 19.728398ms
-client.go:142: write operation time (dataLen 64000): 36.390887ms
-client.go:153: read operation time (dataLen 64000): 50.088658ms
-client.go:572: client compute time: 18.652006ms
-client.go:142: write operation time (dataLen 64000): 35.441531ms
-client.go:153: read operation time (dataLen 64000): 48.171454ms
-client.go:572: client compute time: 19.109933ms
-client.go:142: write operation time (dataLen 64000): 36.802028ms
-client.go:153: read operation time (dataLen 64000): 48.556034ms
-client.go:572: client compute time: 18.501036ms
-client.go:142: write operation time (dataLen 64000): 35.222996ms
-client.go:153: read operation time (dataLen 64000): 48.577621ms
-client.go:572: client compute time: 19.109404ms
-client.go:142: write operation time (dataLen 64000): 36.436837ms
-client.go:153: read operation time (dataLen 64000): 48.798631ms
+average client time: 19.27ms
 client.go:159: average write operation time (dataLen 64000): 38.917405ms
 client.go:160: average read operation time (dataLen 64000): 49.139977ms
+
 dbsize 1000, datasize 64000
-client.go:572: client compute time: 288.261481ms
-client.go:142: write operation time (dataLen 64000): 524.434944ms
-client.go:153: read operation time (dataLen 64000): 139.202688ms
-client.go:572: client compute time: 20.907614ms
-client.go:142: write operation time (dataLen 64000): 257.697788ms
-client.go:153: read operation time (dataLen 64000): 127.784357ms
-client.go:572: client compute time: 19.87751ms
-client.go:142: write operation time (dataLen 64000): 260.747618ms
-client.go:153: read operation time (dataLen 64000): 127.206081ms
-client.go:572: client compute time: 19.67633ms
-client.go:142: write operation time (dataLen 64000): 230.062693ms
-client.go:153: read operation time (dataLen 64000): 127.49011ms
-client.go:572: client compute time: 18.364853ms
-client.go:142: write operation time (dataLen 64000): 222.010248ms
-client.go:153: read operation time (dataLen 64000): 129.31256ms
-client.go:572: client compute time: 18.77027ms
-client.go:142: write operation time (dataLen 64000): 196.322684ms
-client.go:153: read operation time (dataLen 64000): 127.811595ms
-client.go:572: client compute time: 18.413605ms
-client.go:142: write operation time (dataLen 64000): 176.275354ms
-client.go:153: read operation time (dataLen 64000): 134.587449ms
-client.go:572: client compute time: 19.174145ms
-client.go:142: write operation time (dataLen 64000): 174.242086ms
-client.go:153: read operation time (dataLen 64000): 125.806927ms
-client.go:572: client compute time: 19.291559ms
-client.go:142: write operation time (dataLen 64000): 173.413819ms
-client.go:153: read operation time (dataLen 64000): 129.769872ms
-client.go:572: client compute time: 18.823782ms
-client.go:142: write operation time (dataLen 64000): 170.060201ms
-client.go:153: read operation time (dataLen 64000): 126.093105ms
-client.go:572: client compute time: 18.304029ms
-client.go:142: write operation time (dataLen 64000): 172.776485ms
-client.go:153: read operation time (dataLen 64000): 129.639748ms
+average client time: 19.16ms
 client.go:159: average write operation time (dataLen 64000): 203.360897ms
 client.go:160: average read operation time (dataLen 64000): 128.55018ms
+
 dbsize 10000, datasize 64000
-client.go:572: client compute time: 1.852111396s
-client.go:142: write operation time (dataLen 64000): 4.274302922s
-client.go:153: read operation time (dataLen 64000): 902.635493ms
-client.go:572: client compute time: 21.53407ms
-client.go:142: write operation time (dataLen 64000): 2.42258772s
-client.go:153: read operation time (dataLen 64000): 842.833569ms
-client.go:572: client compute time: 20.924247ms
-client.go:142: write operation time (dataLen 64000): 2.394036411s
-client.go:153: read operation time (dataLen 64000): 912.024214ms
-client.go:572: client compute time: 19.201753ms
-client.go:142: write operation time (dataLen 64000): 1.672090233s
-client.go:153: read operation time (dataLen 64000): 908.610335ms
-client.go:572: client compute time: 19.488259ms
-client.go:142: write operation time (dataLen 64000): 2.188180653s
-client.go:153: read operation time (dataLen 64000): 914.025298ms
-client.go:572: client compute time: 18.923626ms
-client.go:142: write operation time (dataLen 64000): 1.493665552s
-client.go:153: read operation time (dataLen 64000): 914.871247ms
-client.go:572: client compute time: 18.725951ms
-client.go:142: write operation time (dataLen 64000): 1.514767785s
-client.go:153: read operation time (dataLen 64000): 907.674789ms
-client.go:572: client compute time: 18.955417ms
-client.go:142: write operation time (dataLen 64000): 1.512502701s
-client.go:153: read operation time (dataLen 64000): 914.018161ms
-client.go:572: client compute time: 19.072376ms
-client.go:142: write operation time (dataLen 64000): 1.502320983s
-client.go:153: read operation time (dataLen 64000): 908.085165ms
-client.go:572: client compute time: 21.823256ms
-client.go:142: write operation time (dataLen 64000): 1.49821651s
-client.go:153: read operation time (dataLen 64000): 917.854803ms
-client.go:572: client compute time: 18.821527ms
-client.go:142: write operation time (dataLen 64000): 1.527446868s
-client.go:153: read operation time (dataLen 64000): 907.939298ms
+average client time: 19.75ms
 client.go:159: average write operation time (dataLen 64000): 1.772581541s
 client.go:160: average read operation time (dataLen 64000): 904.793687ms
+
 dbsize 100000, datasize 64000
-client.go:572: client compute time: 18.152320793s
-client.go:142: write operation time (dataLen 64000): 42.829868711s
-client.go:153: read operation time (dataLen 64000): 8.069562912s
-client.go:572: client compute time: 21.952579ms
-client.go:142: write operation time (dataLen 64000): 23.202668289s
-client.go:153: read operation time (dataLen 64000): 8.85280679s
-client.go:572: client compute time: 18.999575ms
-client.go:142: write operation time (dataLen 64000): 23.500172927s
-client.go:153: read operation time (dataLen 64000): 8.122925948s
-client.go:572: client compute time: 20.758624ms
-client.go:142: write operation time (dataLen 64000): 22.554732652s
-client.go:153: read operation time (dataLen 64000): 8.750754958s
-client.go:572: client compute time: 19.146397ms
-client.go:142: write operation time (dataLen 64000): 15.209460862s
-client.go:153: read operation time (dataLen 64000): 10.37924559s
-client.go:572: client compute time: 19.043163ms
-client.go:142: write operation time (dataLen 64000): 22.153692089s
-client.go:153: read operation time (dataLen 64000): 8.86976964s
-client.go:572: client compute time: 19.094175ms
-client.go:142: write operation time (dataLen 64000): 15.454392898s
-client.go:153: read operation time (dataLen 64000): 9.060968629s
-client.go:572: client compute time: 18.563423ms
-client.go:142: write operation time (dataLen 64000): 15.516723914s
-client.go:153: read operation time (dataLen 64000): 8.787144322s
-client.go:572: client compute time: 19.944803ms
-client.go:142: write operation time (dataLen 64000): 15.316796362s
-client.go:153: read operation time (dataLen 64000): 8.872712173s
-client.go:572: client compute time: 19.536219ms
-client.go:142: write operation time (dataLen 64000): 15.1832181s
-client.go:153: read operation time (dataLen 64000): 8.797621472s
-client.go:572: client compute time: 20.279094ms
-client.go:142: write operation time (dataLen 64000): 15.258354129s
-client.go:153: read operation time (dataLen 64000): 8.845617707s
+average client time: 19.73ms
 client.go:159: average write operation time (dataLen 64000): 18.335021222s
 client.go:160: average read operation time (dataLen 64000): 8.933956722s
-dbsize 500000, datasize 1000
+
+dbsize 500000, datasize 64000
 
 dbsize 1000000, datasize 64000
-
-
-
-below this line is old stuff
---------------------------------------
-dbSize 100, dataSize 256
-client.go:156: average write operation time (dataLen 256): 24.344608ms
-client.go:157: average read operation time (dataLen 256): 45.416538ms
-dbSize 1000, dataSize 256
-client.go:156: average write operation time (dataLen 256): 34.057998ms
-client.go:157: average read operation time (dataLen 256): 43.173971ms
-dbSize 10000, dataSize 256
-client.go:156: average write operation time (dataLen 256): 128.879205ms
-client.go:157: average read operation time (dataLen 256): 47.813959ms
-dbSize 100000, dataSize 256
-client.go:156: average write operation time (dataLen 256): 1.096565948s
-client.go:157: average read operation time (dataLen 256): 104.4055ms
-dbSize 1000000, dataSize 256
-client.go:156: average write operation time (dataLen 256): 10.77142145s
-client.go:157: average read operation time (dataLen 256): 590.767223ms
-
-dbSize 100, dataSize 1000
-client.go:156: average write operation time (dataLen 1000): 23.658981ms
-client.go:157: average read operation time (dataLen 1000): 43.492142ms
-dbSize 1000, dataSize 1000
-client.go:156: average write operation time (dataLen 1000): 37.235581ms
-client.go:157: average read operation time (dataLen 1000): 44.728484ms
-dbSize 10000, dataSize 1000
-client.go:156: average write operation time (dataLen 1000): 161.893922ms
-client.go:157: average read operation time (dataLen 1000): 59.213711ms
-dbSize 100000, dataSize 1000
-client.go:156: average write operation time (dataLen 1000): 1.389106188s
-client.go:157: average read operation time (dataLen 1000): 195.836817ms
-dbSize 1000000, dataSize 1000
-client.go:156: average write operation time (dataLen 1000): 14.08496741s
-client.go:157: average read operation time (dataLen 1000): 1.494724641s
-
-dbSize 100, dataSize 10000
-client.go:156: average write operation time (dataLen 10000): 26.906757ms
-client.go:157: average read operation time (dataLen 10000): 45.941775ms
-dbSize 1000, dataSize 10000
-client.go:156: average write operation time (dataLen 10000): 60.076585ms
-client.go:157: average read operation time (dataLen 10000): 55.833596ms
-dbSize 10000, dataSize 10000
-client.go:156: average write operation time (dataLen 10000): 393.372984ms
-client.go:157: average read operation time (dataLen 10000): 167.749241ms
-dbSize 100000, dataSize 10000
-client.go:156: average write operation time (dataLen 10000): 3.721784143s
-client.go:157: average read operation time (dataLen 10000): 1.267020876s
-dbSize 1000000, dataSize 10000
-client.go:156: average write operation time (dataLen 10000): 36.688860783s
-client.go:157: average read operation time (dataLen 10000): 11.98065076s
-
 

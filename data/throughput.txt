@@ -9,363 +9,67 @@ all servers in same datacenter (east)
 1KB messages
 1000 rows
 serverA.go:55: running with parameters 32 0 999 1000
-serverA.go:209: Time Elapsed: 10.000096831s; number of writes: 531
-serverA.go:209: Time Elapsed: 20.000302395s; number of writes: 1065
-serverA.go:209: Time Elapsed: 30.000446264s; number of writes: 1596
-serverA.go:209: Time Elapsed: 40.00056841s; number of writes: 2132
-serverA.go:209: Time Elapsed: 50.000705213s; number of writes: 2667
-serverA.go:209: Time Elapsed: 1m0.000849465s; number of writes: 3205
-serverA.go:209: Time Elapsed: 1m10.000969247s; number of writes: 3742
-serverA.go:209: Time Elapsed: 1m20.001110375s; number of writes: 4277
-serverA.go:209: Time Elapsed: 1m30.001246804s; number of writes: 4811
-serverA.go:209: Time Elapsed: 1m40.00137701s; number of writes: 5346
-serverA.go:209: Time Elapsed: 1m50.001521869s; number of writes: 5881
-serverA.go:209: Time Elapsed: 2m0.001674036s; number of writes: 6419
+53.54 writes/sec
+
 10,000 rows 
 serverA.go:55: running with parameters 32 0 9999 1000
-serverA.go:209: Time Elapsed: 10.000127351s; number of writes: 472
-serverA.go:209: Time Elapsed: 20.000326384s; number of writes: 968
-serverA.go:209: Time Elapsed: 30.000497806s; number of writes: 1459
-serverA.go:209: Time Elapsed: 40.000649066s; number of writes: 1953
-serverA.go:209: Time Elapsed: 50.000803089s; number of writes: 2449
-serverA.go:209: Time Elapsed: 1m0.000961874s; number of writes: 2942
-serverA.go:209: Time Elapsed: 1m10.001117349s; number of writes: 3434
-serverA.go:209: Time Elapsed: 1m20.001335768s; number of writes: 3926
-serverA.go:209: Time Elapsed: 1m30.001503216s; number of writes: 4417
-serverA.go:209: Time Elapsed: 1m40.001737349s; number of writes: 4909
-serverA.go:209: Time Elapsed: 1m50.001910216s; number of writes: 5406
-serverA.go:209: Time Elapsed: 2m0.00212067s; number of writes: 5903
-serverA.go:209: Time Elapsed: 2m10.002294546s; number of writes: 6400
+49.35 writes/sec
+
 25,000 rows
 serverA.go:55: running with parameters 32 0 24999 1000
-serverA.go:209: Time Elapsed: 10.02926099s; number of writes: 267
-serverA.go:209: Time Elapsed: 20.030982649s; number of writes: 570
-serverA.go:209: Time Elapsed: 30.045775898s; number of writes: 879
-serverA.go:209: Time Elapsed: 40.061319922s; number of writes: 1193
-serverA.go:209: Time Elapsed: 50.07731376s; number of writes: 1508
-serverA.go:209: Time Elapsed: 1m0.10393073s; number of writes: 1822
-serverA.go:209: Time Elapsed: 1m10.112734109s; number of writes: 2136
-serverA.go:209: Time Elapsed: 1m20.12532966s; number of writes: 2452
-serverA.go:209: Time Elapsed: 1m30.125448032s; number of writes: 2768
-serverA.go:209: Time Elapsed: 1m40.133758436s; number of writes: 3080
-serverA.go:209: Time Elapsed: 1m50.154404057s; number of writes: 3397
-serverA.go:209: Time Elapsed: 2m0.182470825s; number of writes: 3711
+31.41 writes/sec
+
 50,000 rows
 serverA.go:55: running with parameters 32 0 49999 1000
-serverA.go:209: Time Elapsed: 10.000820969s; number of writes: 118
-serverA.go:209: Time Elapsed: 20.005006005s; number of writes: 275
-serverA.go:209: Time Elapsed: 30.041101372s; number of writes: 433
-serverA.go:209: Time Elapsed: 40.06167508s; number of writes: 589
-serverA.go:209: Time Elapsed: 50.07797365s; number of writes: 744
-serverA.go:209: Time Elapsed: 1m0.09566199s; number of writes: 903
-serverA.go:209: Time Elapsed: 1m10.117862895s; number of writes: 1058
-serverA.go:209: Time Elapsed: 1m20.158687884s; number of writes: 1218
-serverA.go:209: Time Elapsed: 1m30.200403204s; number of writes: 1379
-serverA.go:209: Time Elapsed: 1m40.213199661s; number of writes: 1535
-serverA.go:209: Time Elapsed: 1m50.229205651s; number of writes: 1692
-serverA.go:209: Time Elapsed: 2m0.260500504s; number of writes: 1856
+15.81 writes/sec
+
 75,000 rows
 serverA.go:55: running with parameters 32 0 74999 1000
-serverA.go:209: Time Elapsed: 10.026507116s; number of writes: 71
-serverA.go:209: Time Elapsed: 20.041565032s; number of writes: 174
-serverA.go:209: Time Elapsed: 30.07913996s; number of writes: 281
-serverA.go:209: Time Elapsed: 40.148356817s; number of writes: 384
-serverA.go:209: Time Elapsed: 50.186102027s; number of writes: 491
-serverA.go:209: Time Elapsed: 1m0.221057408s; number of writes: 596
-serverA.go:209: Time Elapsed: 1m10.257716688s; number of writes: 705
-serverA.go:209: Time Elapsed: 1m20.290693916s; number of writes: 810
-serverA.go:209: Time Elapsed: 1m30.331245706s; number of writes: 914
-serverA.go:209: Time Elapsed: 1m40.407018563s; number of writes: 1022
-serverA.go:209: Time Elapsed: 1m50.443571071s; number of writes: 1129
-serverA.go:209: Time Elapsed: 2m0.465338851s; number of writes: 1234
+10.6 writes/sec
+
 100,000 rows 
 serverA.go:55: running with parameters 32 0 99999 1000
-serverA.go:209: Time Elapsed: 10.046409467s; number of writes: 38
-serverA.go:209: Time Elapsed: 20.098599347s; number of writes: 120
-serverA.go:209: Time Elapsed: 30.113036433s; number of writes: 199
-serverA.go:209: Time Elapsed: 40.128378817s; number of writes: 275
-serverA.go:209: Time Elapsed: 50.196723758s; number of writes: 355
-serverA.go:209: Time Elapsed: 1m0.243106059s; number of writes: 434
-serverA.go:209: Time Elapsed: 1m10.243306554s; number of writes: 511
-serverA.go:209: Time Elapsed: 1m20.252978639s; number of writes: 594
-serverA.go:209: Time Elapsed: 1m30.267845072s; number of writes: 671
-serverA.go:209: Time Elapsed: 1m40.281048839s; number of writes: 749
-serverA.go:209: Time Elapsed: 1m50.284771666s; number of writes: 830
-serverA.go:209: Time Elapsed: 2m0.301036992s; number of writes: 907
+7.87 writes/sec
+
 200,000 rows
 serverA.go:55: running with parameters 32 0 199999 1000
-serverA.go:209: Time Elapsed: 10.056565839s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.146414071s; number of writes: 32
-serverA.go:209: Time Elapsed: 30.213630362s; number of writes: 76
-serverA.go:209: Time Elapsed: 40.274519126s; number of writes: 124
-serverA.go:209: Time Elapsed: 50.358218188s; number of writes: 159
-serverA.go:209: Time Elapsed: 1m0.387141085s; number of writes: 194
-serverA.go:209: Time Elapsed: 1m10.398376093s; number of writes: 235
-serverA.go:209: Time Elapsed: 1m20.443575605s; number of writes: 277
-serverA.go:209: Time Elapsed: 1m30.522541667s; number of writes: 319
-serverA.go:209: Time Elapsed: 1m40.575880671s; number of writes: 355
-serverA.go:209: Time Elapsed: 1m50.689119945s; number of writes: 398
-serverA.go:209: Time Elapsed: 2m0.715977961s; number of writes: 437
+4.05 writes/sec
+
 300,000 rows
 serverA.go:55: running with parameters 32 0 299999 1000
-serverA.go:209: Time Elapsed: 10.058932945s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.153653449s; number of writes: 1
-serverA.go:209: Time Elapsed: 30.283879982s; number of writes: 32
-serverA.go:209: Time Elapsed: 40.424455478s; number of writes: 64
-serverA.go:209: Time Elapsed: 50.440634201s; number of writes: 96
-serverA.go:209: Time Elapsed: 1m0.532200708s; number of writes: 125
-serverA.go:209: Time Elapsed: 1m10.57178211s; number of writes: 148
-serverA.go:209: Time Elapsed: 1m20.613601268s; number of writes: 165
-serverA.go:209: Time Elapsed: 1m30.681034236s; number of writes: 194
-serverA.go:209: Time Elapsed: 1m40.841610831s; number of writes: 224
-serverA.go:209: Time Elapsed: 1m50.92764868s; number of writes: 254
-serverA.go:209: Time Elapsed: 2m1.006343544s; number of writes: 282
-serverA.go:209: Time Elapsed: 2m11.014993835s; number of writes: 303
+2.81 writes/sec
+
 400,000 rows
 serverA.go:55: running with parameters 32 0 399999 1000
-serverA.go:209: Time Elapsed: 10.050862762s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.143007222s; number of writes: 0
-serverA.go:209: Time Elapsed: 30.310318037s; number of writes: 24
-serverA.go:209: Time Elapsed: 40.427506121s; number of writes: 32
-serverA.go:209: Time Elapsed: 50.540161467s; number of writes: 64
-serverA.go:209: Time Elapsed: 1m0.614572742s; number of writes: 74
-serverA.go:209: Time Elapsed: 1m10.723499079s; number of writes: 96
-serverA.go:209: Time Elapsed: 1m20.805051234s; number of writes: 124
-serverA.go:209: Time Elapsed: 1m30.835912454s; number of writes: 132
-serverA.go:209: Time Elapsed: 1m40.924223352s; number of writes: 160
-serverA.go:209: Time Elapsed: 1m50.970465658s; number of writes: 179
-serverA.go:209: Time Elapsed: 2m1.064240024s; number of writes: 192
-serverA.go:209: Time Elapsed: 2m11.147769688s; number of writes: 221
-serverA.go:209: Time Elapsed: 2m21.209781294s; number of writes: 234
-serverA.go:209: Time Elapsed: 2m31.301139464s; number of writes: 256
-serverA.go:209: Time Elapsed: 2m41.33643299s; number of writes: 280
+1.92 writes/sec
+
 500,000 rows
 serverA.go:55: running with parameters 32 0 499999 1000
-serverA.go:209: Time Elapsed: 10.022924733s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.130531453s; number of writes: 0
-serverA.go:209: Time Elapsed: 30.178572591s; number of writes: 0
-serverA.go:209: Time Elapsed: 40.270852742s; number of writes: 32
-serverA.go:209: Time Elapsed: 50.37891183s; number of writes: 32
-serverA.go:209: Time Elapsed: 1m0.430940912s; number of writes: 64
-serverA.go:209: Time Elapsed: 1m10.608454191s; number of writes: 64
-serverA.go:209: Time Elapsed: 1m20.689988005s; number of writes: 94
-serverA.go:209: Time Elapsed: 1m30.839961688s; number of writes: 96
-serverA.go:209: Time Elapsed: 1m40.964786027s; number of writes: 124
-serverA.go:209: Time Elapsed: 1m51.17482325s; number of writes: 128
-serverA.go:209: Time Elapsed: 2m1.412116182s; number of writes: 157
-serverA.go:209: Time Elapsed: 2m11.516849816s; number of writes: 160
-serverA.go:209: Time Elapsed: 2m21.592783644s; number of writes: 189
-serverA.go:209: Time Elapsed: 2m31.690514571s; number of writes: 193
-serverA.go:209: Time Elapsed: 2m41.824198047s; number of writes: 222
-serverA.go:209: Time Elapsed: 2m52.210855408s; number of writes: 225
-serverA.go:209: Time Elapsed: 3m2.335244313s; number of writes: 254
-serverA.go:209: Time Elapsed: 3m12.433202892s; number of writes: 258
+1.57 writes/sec
+
+
+
 
 32KB message
 1,000 rows
 serverA.go:55: running with parameters 32 0 999 32000
-serverA.go:209: Time Elapsed: 10.000121423s; number of writes: 477
-serverA.go:209: Time Elapsed: 20.000311241s; number of writes: 995
-serverA.go:209: Time Elapsed: 30.000455241s; number of writes: 1513
-serverA.go:209: Time Elapsed: 40.000604964s; number of writes: 2026
-serverA.go:209: Time Elapsed: 50.000752183s; number of writes: 2540
-serverA.go:209: Time Elapsed: 1m0.000895242s; number of writes: 3053
-serverA.go:209: Time Elapsed: 1m10.00103312s; number of writes: 3570
-serverA.go:209: Time Elapsed: 1m20.00120563s; number of writes: 4086
-serverA.go:209: Time Elapsed: 1m30.001383257s; number of writes: 4598
-serverA.go:209: Time Elapsed: 1m40.001515482s; number of writes: 5112
-serverA.go:209: Time Elapsed: 1m50.001659028s; number of writes: 5626
-serverA.go:209: Time Elapsed: 2m0.001809819s; number of writes: 6140
-serverA.go:209: Time Elapsed: 2m10.001980553s; number of writes: 6652
+51.49 writes/sec
+
 5,000 rows
 serverA.go:55: running with parameters 32 0 4999 32000
-serverA.go:209: Time Elapsed: 10.019111365s; number of writes: 90
-serverA.go:209: Time Elapsed: 20.026382026s; number of writes: 305
-serverA.go:209: Time Elapsed: 30.057668519s; number of writes: 519
-serverA.go:209: Time Elapsed: 40.09015402s; number of writes: 732
-serverA.go:209: Time Elapsed: 50.110215541s; number of writes: 946
-serverA.go:209: Time Elapsed: 1m0.131828307s; number of writes: 1161
-serverA.go:209: Time Elapsed: 1m10.153517981s; number of writes: 1374
-serverA.go:209: Time Elapsed: 1m20.175355311s; number of writes: 1586
-serverA.go:209: Time Elapsed: 1m30.19702126s; number of writes: 1799
-serverA.go:209: Time Elapsed: 1m40.21664967s; number of writes: 2012
-serverA.go:209: Time Elapsed: 1m50.266613471s; number of writes: 2223
-serverA.go:209: Time Elapsed: 2m0.295664552s; number of writes: 2439
-serverA.go:209: Time Elapsed: 2m10.327197385s; number of writes: 2652
-serverA.go:209: Time Elapsed: 2m20.343209726s; number of writes: 2866
+21.33 writes/sec
+
 10,000 rows
 serverA.go:55: running with parameters 32 0 9999 32000
-serverA.go:209: Time Elapsed: 10.02615317s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.053874125s; number of writes: 84
-serverA.go:209: Time Elapsed: 30.085740089s; number of writes: 193
-serverA.go:209: Time Elapsed: 40.157098191s; number of writes: 301
-serverA.go:209: Time Elapsed: 50.170407348s; number of writes: 398
-serverA.go:209: Time Elapsed: 1m0.183481489s; number of writes: 502
-serverA.go:209: Time Elapsed: 1m10.208363448s; number of writes: 608
-serverA.go:209: Time Elapsed: 1m20.222695234s; number of writes: 717
-serverA.go:209: Time Elapsed: 1m30.244143656s; number of writes: 825
-serverA.go:209: Time Elapsed: 1m40.265461334s; number of writes: 931
-serverA.go:209: Time Elapsed: 1m50.279605939s; number of writes: 1040
-serverA.go:209: Time Elapsed: 2m0.295823149s; number of writes: 1144
-serverA.go:209: Time Elapsed: 2m10.317163774s; number of writes: 1251
-serverA.go:209: Time Elapsed: 2m20.333625024s; number of writes: 1362
-serverA.go:209: Time Elapsed: 2m30.346500477s; number of writes: 1465
-serverA.go:209: Time Elapsed: 2m40.365064707s; number of writes: 1574
-serverA.go:209: Time Elapsed: 2m50.397010018s; number of writes: 1681
+10.6 writes/sec
+
 25,000 rows
 serverA.go:55: running with parameters 32 0 24999 32000
-serverA.go:209: Time Elapsed: 10.029116591s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.048340676s; number of writes: 0
-serverA.go:209: Time Elapsed: 30.077380158s; number of writes: 0
-serverA.go:209: Time Elapsed: 40.109130913s; number of writes: 34
-serverA.go:209: Time Elapsed: 50.139159433s; number of writes: 90
-serverA.go:209: Time Elapsed: 1m0.331551518s; number of writes: 128
-serverA.go:209: Time Elapsed: 1m10.34005916s; number of writes: 164
-serverA.go:209: Time Elapsed: 1m20.390411229s; number of writes: 221
-serverA.go:209: Time Elapsed: 1m30.431359603s; number of writes: 256
-serverA.go:209: Time Elapsed: 1m40.455340014s; number of writes: 298
-serverA.go:209: Time Elapsed: 1m50.515549282s; number of writes: 348
-serverA.go:209: Time Elapsed: 2m0.544770157s; number of writes: 384
-serverA.go:209: Time Elapsed: 2m10.57653131s; number of writes: 429
-serverA.go:209: Time Elapsed: 2m20.617601275s; number of writes: 475
-serverA.go:209: Time Elapsed: 2m30.658392065s; number of writes: 512
-serverA.go:209: Time Elapsed: 2m40.695894527s; number of writes: 553
-serverA.go:209: Time Elapsed: 2m50.726342811s; number of writes: 605
-serverA.go:209: Time Elapsed: 3m0.786446366s; number of writes: 645
-serverA.go:209: Time Elapsed: 3m10.836367391s; number of writes: 682
+4.41 writes/sec
+
 50,000 rows
 (switched to 16 threads because server B ran out of memory)
 serverA.go:55: running with parameters 16 0 49999 32000
-serverA.go:209: Time Elapsed: 10.00568873s; number of writes: 0
-serverA.go:209: Time Elapsed: 20.026081766s; number of writes: 0
-serverA.go:209: Time Elapsed: 30.0399816s; number of writes: 0
-serverA.go:209: Time Elapsed: 40.056945476s; number of writes: 16
-serverA.go:209: Time Elapsed: 50.075131253s; number of writes: 48
-serverA.go:209: Time Elapsed: 1m0.096619092s; number of writes: 64
-serverA.go:209: Time Elapsed: 1m10.112523749s; number of writes: 80
-serverA.go:209: Time Elapsed: 1m20.126722469s; number of writes: 112
-serverA.go:209: Time Elapsed: 1m30.147236112s; number of writes: 128
-serverA.go:209: Time Elapsed: 1m40.175106879s; number of writes: 144
-serverA.go:209: Time Elapsed: 1m50.19042511s; number of writes: 176
-serverA.go:209: Time Elapsed: 2m0.211362579s; number of writes: 192
-serverA.go:209: Time Elapsed: 2m10.227299491s; number of writes: 208
-serverA.go:209: Time Elapsed: 2m20.252954475s; number of writes: 240
-serverA.go:209: Time Elapsed: 2m30.253766154s; number of writes: 256
-serverA.go:209: Time Elapsed: 2m40.278843829s; number of writes: 272
-serverA.go:209: Time Elapsed: 2m50.300929729s; number of writes: 304
-serverA.go:209: Time Elapsed: 3m0.321865643s; number of writes: 320
-serverA.go:209: Time Elapsed: 3m10.34595795s; number of writes: 336
-serverA.go:209: Time Elapsed: 3m20.366156161s; number of writes: 368
+2.24 writes/sec
 
 
-
-
-
-old stuff below this line
--------------------
-
-256 bytes message
-1000 rows
-5.9 queries/sec
-10000 rows
-6.0 queries/sec
-100000 rows
-5.7 queries/sec
-200000 rows
-4.7 queries/sec
-300000 rows
-3.0 queries/sec
-400000 rows
-2.4 queries/sec
-500000 rows
-1.9 queries/sec
-
-1KB message
-1000 rows
-6.1 queries/sec
-10,000 rows 
-6.0 queries/sec
-100,000 rows 
-5.8 queries/sec
-200,000 rows
-3.9 queries/sec
-300,000 rows
-2.6 queries/sec
-400,000 rows
-1.7 queries/sec
-500,000 rows
-1.6 queries/sec
-
-_______________________
-repeat with all servers in same datacenter
-
-1KB message
-1000 rows
-48 queries/sec
-10,000 rows 
-46 queries/sec
-25,000 rows
-28.9 queries/sec
-50,000 rows
-15.8 queries/sec
-75,000 rows
-10.5 queries/sec
-100,000 rows 
-8.0 queries/sec
-200,000 rows
-4.1 queries/sec
-300,000 rows
-2.7 queries/sec
-400,000 rows
-2.1 queries/sec
-500,000 rows
-1.6 queries/sec
-
-
-20KB message
-1,000 rows
-43.93 queries/sec
-2,000 rows
-41.5 queries/sec
-3,000 rows
-30.55 queries/sec
-4,000 rows
-23.9 queries/sec
-5,000 rows
-20.15 queries/sec
-6,000 rows
-17.04 queries/sec
-7,000 rows
-15.03 queries/sec
-8,000 rows
-13.39 queries/sec
-9,000 rows
-11.88 queries/sec
-10,000 rows
-9.65 queries/sec
-20,000 rows
-5.55 queries/sec
-30,000 rows
-3.70 queries/sec
-40,000 rows
-2.78 queries/sec
-50,000 rows
-2.27 queries/sec
-60,000 rows
-1.83 queries/sec
-70,000 rows
-1.63 queries/sec
-80,000 rows
-1.44 queries/sec
-90,000 rows
-1.32 queries/sec
-100,000 rows
-1.14 queries/sec
-200,000 rows
-.57 queries/sec
-300,000 rows
-.38 queries/sec
-400,000 rows
-.28 queries/sec
-500,000 rows
-.23 queries/sec

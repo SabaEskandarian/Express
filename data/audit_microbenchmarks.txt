@@ -1,9 +1,40 @@
 These were done single-threaded
 
+
+client proof gen time for 
+dbsize 	1000	10000	100000	1000000
+average	5.2	2.2	2.8	2.8
+std dev	0.447213595499958	0.447213595499958	1.78885438199983	0.447213595499958
+				
+total average	3.25			
+total stdev	1.48235232689554	
+
+server total costs for 
+dbsize	1000	10000	100000	1000000
+average	162.8	1373.4	13572.6	135626
+std dev	43.7344257993631	23.0282435283284	52.21877057151	541.200979304362
+
+
+Riposte client costs
+average	193	1569	15423.6	153942.2
+std dev	8.27647267862342	12.369316876853	44.0545116872268	307.00114006303
+
+Riposte server costs
+average	55.4	495.8	5023.4	51527.8
+std dev	10.9909053312273	18.806913622389	48.3663105890867	122.446723108461
+
+Riposte Auditor costs
+average	103.2	959.2	9625.6	96349.6
+std dev	12.1942609452152	12.1531888819355	59.6095629911846	133.866724767584
+
+		
+Raw Data
+---------------------------------------------------
 client proof gen time for db size 1000: 5 microseconds
 server prep time for db size 1000: 236 microseconds
 server query time for db size 1000: 3 microseconds
 server verification time for db size 1000: 2 microseconds
+total server time: 241 microseconds
 
 client proof gen time for db size 10000: 2 microseconds
 server prep time for db size 10000: 1387 microseconds
@@ -42,27 +73,34 @@ client proof gen time for db size 1000: 5 microseconds
 server prep time for db size 1000: 142 microseconds
 server query time for db size 1000: 2 microseconds
 server verification time for db size 1000: 1 microseconds
+
 client proof gen time for db size 10000: 2 microseconds
 server prep time for db size 10000: 1355 microseconds
 server query time for db size 10000: 2 microseconds
 server verification time for db size 10000: 1 microseconds
+
 client proof gen time for db size 100000: 6 microseconds
 server prep time for db size 100000: 13495 microseconds
 server query time for db size 100000: 3 microseconds
 server verification time for db size 100000: 1 microseconds
+
 client proof gen time for db size 1000000: 3 microseconds
 server prep time for db size 1000000: 135384 microseconds
 server query time for db size 1000000: 4 microseconds
 server verification time for db size 1000000: 2 microseconds
+
 riposte client verification time for db size 1000: 201 microseconds
 riposte server verification time for db size 1000: 52 microseconds
 riposte auditor verification time for db size 1000: 98 microseconds
+
 riposte client verification time for db size 10000: 1584 microseconds
 riposte server verification time for db size 10000: 485 microseconds
 riposte auditor verification time for db size 10000: 948 microseconds
+
 riposte client verification time for db size 100000: 15385 microseconds
 riposte server verification time for db size 100000: 4999 microseconds
 riposte auditor verification time for db size 100000: 9596 microseconds
+
 riposte client verification time for db size 1000000: 153681 microseconds
 riposte server verification time for db size 1000000: 51335 microseconds
 riposte auditor verification time for db size 1000000: 96390 microseconds
@@ -71,27 +109,34 @@ client proof gen time for db size 1000: 5 microseconds
 server prep time for db size 1000: 140 microseconds
 server query time for db size 1000: 3 microseconds
 server verification time for db size 1000: 1 microseconds
+
 client proof gen time for db size 10000: 2 microseconds
 server prep time for db size 10000: 1348 microseconds
 server query time for db size 10000: 2 microseconds
 server verification time for db size 10000: 1 microseconds
+
 client proof gen time for db size 100000: 2 microseconds
 server prep time for db size 100000: 13633 microseconds
 server query time for db size 100000: 4 microseconds
 server verification time for db size 100000: 2 microseconds
+
 client proof gen time for db size 1000000: 2 microseconds
 server prep time for db size 1000000: 135753 microseconds
 server query time for db size 1000000: 5 microseconds
 server verification time for db size 1000000: 2 microseconds
+5
 riposte client verification time for db size 1000: 188 microseconds
 riposte server verification time for db size 1000: 50 microseconds
 riposte auditor verification time for db size 1000: 98 microseconds
+
 riposte client verification time for db size 10000: 1574 microseconds
 riposte server verification time for db size 10000: 528 microseconds
 riposte auditor verification time for db size 10000: 954 microseconds
+
 riposte client verification time for db size 100000: 15452 microseconds
 riposte server verification time for db size 100000: 5085 microseconds
 riposte auditor verification time for db size 100000: 9701 microseconds
+
 riposte client verification time for db size 1000000: 154285 microseconds
 riposte server verification time for db size 1000000: 51561 microseconds
 riposte auditor verification time for db size 1000000: 96536 microseconds
@@ -100,27 +145,34 @@ client proof gen time for db size 1000: 6 microseconds
 server prep time for db size 1000: 138 microseconds
 server query time for db size 1000: 3 microseconds
 server verification time for db size 1000: 1 microseconds
+
 client proof gen time for db size 10000: 3 microseconds
 server prep time for db size 10000: 1402 microseconds
 server query time for db size 10000: 2 microseconds
 server verification time for db size 10000: 1 microseconds
+
 client proof gen time for db size 100000: 2 microseconds
 server prep time for db size 100000: 13572 microseconds
 server query time for db size 100000: 4 microseconds
 server verification time for db size 100000: 1 microseconds
+
 client proof gen time for db size 1000000: 3 microseconds
 server prep time for db size 1000000: 135175 microseconds
 server query time for db size 1000000: 5 microseconds
 server verification time for db size 1000000: 1 microseconds
+
 riposte client verification time for db size 1000: 193 microseconds
 riposte server verification time for db size 1000: 50 microseconds
 riposte auditor verification time for db size 1000: 125 microseconds
+
 riposte client verification time for db size 10000: 1553 microseconds
 riposte server verification time for db size 10000: 483 microseconds
 riposte auditor verification time for db size 10000: 979 microseconds
+
 riposte client verification time for db size 100000: 15431 microseconds
 riposte server verification time for db size 100000: 5000 microseconds
 riposte auditor verification time for db size 100000: 9583 microseconds
+
 riposte client verification time for db size 1000000: 153964 microseconds
 riposte server verification time for db size 1000000: 51491 microseconds
 riposte auditor verification time for db size 1000000: 96171 microseconds
@@ -129,27 +181,34 @@ client proof gen time for db size 1000: 5 microseconds
 server prep time for db size 1000: 138 microseconds
 server query time for db size 1000: 3 microseconds
 server verification time for db size 1000: 1 microseconds
+
 client proof gen time for db size 10000: 2 microseconds
 server prep time for db size 10000: 1360 microseconds
 server query time for db size 10000: 2 microseconds
 server verification time for db size 10000: 1 microseconds
+
 client proof gen time for db size 100000: 2 microseconds
 server prep time for db size 100000: 13546 microseconds
 server query time for db size 100000: 3 microseconds
 server verification time for db size 100000: 2 microseconds
+
 client proof gen time for db size 1000000: 3 microseconds
 server prep time for db size 1000000: 135281 microseconds
 server query time for db size 1000000: 4 microseconds
 server verification time for db size 1000000: 2 microseconds
+
 riposte client verification time for db size 1000: 201 microseconds
 riposte server verification time for db size 1000: 75 microseconds
 riposte auditor verification time for db size 1000: 97 microseconds
+
 riposte client verification time for db size 10000: 1574 microseconds
 riposte server verification time for db size 10000: 486 microseconds
 riposte auditor verification time for db size 10000: 962 microseconds
+
 riposte client verification time for db size 100000: 15373 microseconds
 riposte server verification time for db size 100000: 5063 microseconds
 riposte auditor verification time for db size 100000: 9570 microseconds
+
 riposte client verification time for db size 1000000: 153586 microseconds
 riposte server verification time for db size 1000000: 51603 microseconds
 riposte auditor verification time for db size 1000000: 96292 microseconds
