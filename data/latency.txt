@@ -916,5 +916,3 @@ client.go:156: average write operation time (dataLen 10000): 36.688860783s
 client.go:157: average read operation time (dataLen 10000): 11.98065076s
 
 
-------------------------------------------
-

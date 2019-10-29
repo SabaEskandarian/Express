@@ -370,27 +370,86 @@ function bigIntOps(aShare, bShare, m, p) {
     return retArray;
 }
 
+function evalLinear2(p0, p1, p) {
+    slope = (p1 - p0) % p;
+    p2 = (slope+slope+p0)%p;
+    return p2;
+}
+
+function bigIntToByteArray(val){
+    retArray = [];
+    shift = 1n;
+    for(var i = 0; i < 16; i++){
+        tempVal = (val/shift) % 256n;
+        retArray.push(Number(tempVal));
+        shift = shift * 256n;
+    }
+    return retArray;
+}
+
 function auditDPF(ctx, seed, shareA, shareB) {
     returnBlob = {};
     returnBlob['proofA'] = [];
     returnBlob['proofB'] = [];
-    //since index is hard-coded to 0, bits will be an entirely random vector
-    //so we can do it in one shot
-    //TODO: update this to use new auditing
-    bitsVector = auditPRF(ctx, seed, 0, -1);
     
     aShare = toBigNum(shareA);
     bShare = toBigNum(shareB);
     
     p = 2n ** 128n - 159n;
     
-    for(var i = 0; i < dbLayers; i++){
-        returnBlob['bits'].push(getbit(bitsVector, i));
-
-        prfVal = auditPRF(ctx, seed, i, 0);
-        m = toBigNum(prfVal);
-        returnBlob['vals'].push(bigIntOps(aShare, bShare, m, p));
+    for(i = 0; i < 10; i++){
+        returnBlob['proofB'].push(nacl.randomBytes(16));
     }
+    
+    //are these integers or random bytes?
+    A0 = toBigNum(nacl.randomBytes(16));
+    A1 = toBigNum(nacl.randomBytes(16));
+    A5 = toBigNum(nacl.randomBytes(16));
+    A6 = toBigNum(nacl.randomBytes(16));
+    
+    f0mult1 = (A0 - toBigNum(returnBlob['proofB'][0])) % p;
+    g0mult1 = (A1 - toBigNum(returnBlob['proofB'][1])) % p;
+    f0mult2 = (A5 - toBigNum(returnBlob['proofB'][5])) % p;
+    g0mult2 = (A6 - toBigNum(returnBlob['proofB'][6])) % p;
+    
+    rvalue = toBigNum(auditPRF(ctx, seed, 0, 0));
+    
+    f1mult1 = (((aShare - bShare)%p)*rvalue)%p;
+    g1mult1 = f1mult1;
+    f1mult2 = (aShare - bShare) % p;
+    g1mult2 = f1mult1;
+    
+    h0mult1 = (f0mult1*g0mult1)%p;
+	h0mult2 = (f0mult2*g0mult2)%p;
+	h1mult1 = (f1mult1*g1mult1)%p;
+	h1mult2 = (f1mult2*g1mult2)%p;
+    
+    A2 = (h0mult1 + toBigNum(returnBlob['proofB'][2]))%p;
+    A7 = (h0mult2 + toBigNum(returnBlob['proofB'][7]))%p;
+    A3 = (h1mult1 + toBigNum(returnBlob['proofB'][3]))%p;
+    A8 = (h1mult2 + toBigNum(returnBlob['proofB'][8]))%p;
+    
+    f2mult1 = evalLinear2(f0mult1, f1mult1, p);
+    g2mult1 = evalLinear2(g0mult1, g1mult1, p);
+    f2mult2 = evalLinear2(f0mult2, f1mult2, p);
+    g2mult2 = evalLinear2(g0mult2, g1mult2, p);
+    
+    h2mult1 = (f2mult1*g2mult1)%p;
+    h2mult2 = (f2mult2*g2mult2)%p;
+    
+    A4 = (h2mult1 + toBigNum(returnBlob['proofB'][4]))%p;
+    A9 = (h2mult1 + toBigNum(returnBlob['proofB'][9]))%p;
+    
+    returnBlob['proofA'].push(bigIntToByteArray(A0));
+    returnBlob['proofA'].push(bigIntToByteArray(A1));
+    returnBlob['proofA'].push(bigIntToByteArray(A2));
+    returnBlob['proofA'].push(bigIntToByteArray(A3));
+    returnBlob['proofA'].push(bigIntToByteArray(A4));
+    returnBlob['proofA'].push(bigIntToByteArray(A5));
+    returnBlob['proofA'].push(bigIntToByteArray(A6));
+    returnBlob['proofA'].push(bigIntToByteArray(A7));
+    returnBlob['proofA'].push(bigIntToByteArray(A8));
+    returnBlob['proofA'].push(bigIntToByteArray(A9));
     
     return returnBlob;
 }

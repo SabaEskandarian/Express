@@ -16,7 +16,6 @@ Server1Read Server1Write  AuditRead AuditWrite
   
 ----------------------
 Our bandwidth numbers
-
 New numbers: these are the relevant ones
 
 new serverA = 4 + 4 + 4 + 40 + 2*dataTransferSize + 64 + dataTransferSize + 16 + 360 + 200 + 24 + 160 + 16
@@ -29,8 +28,8 @@ new client = 1 + 4 + 4 + 2*dataTransferSize + 24+box.Overhead + 16 + 4 + 344+box
  = 429 + 2*(2322+160)
  = 429 + 4964
  = 5393 Bytes (constant for dataSize = 160)
-------
 
+------
 
 set msgSize = 160 for comparison with Riposte
 
