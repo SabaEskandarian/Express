@@ -492,3 +492,99 @@ Download (pir) 5242888 bytes
 retr (1 msgs): 27013745 usec
 0 - Retrieved msg is msg #0 from 0
 processed 1 rounds in 188170732 usec
+
+
+------------------------------------------
+Benchmarks
+
+bench_pir_query_524288_d_2_a_32_1KB query size: 4194304 bytes
+-----------------------------------------------------
+bench_pir_query_1048576_d_2_a_32_1KB query size: 6291456 bytes
+-----------------------------------------------------
+Benchmarking bench_pir_query_524288_d_2_a_32_1KB
+Benchmarking bench_pir_query_524288_d_2_a_32_1KB: Warming up for 3.0000 s
+Benchmarking bench_pir_query_1048576_d_2_a_32_1KB
+Benchmarking bench_pir_query_1048576_d_2_a_32_1KB: Warming up for 3.0000 s
+Benchmarking bench_pir_query_1048576_d_2_a_32_1KB: Collecting 25 samples in estimated 9.6956 s (325 iterations)
+Benchmarking bench_pir_query_524288_d_2_a_32_1KB: Collecting 25 samples in estimated 5.9350 s (325 iterations)
+bench_pir_answer_524288_d_2_a_32_1KB query size: 4194304 bytes
+bench_pir_decode_524288_d_2_a_32_1KB query size: 4194304 bytes
+bench_pir_answer_524288_d_2_a_32_1KB answer size: 1982464 bytes
+-----------------------------------------------------
+bench_pir_decode_524288_d_2_a_32_1KB answer size: 1982464 bytes
+bench_pir_decode_524288_d_2_a_32_1KB decoded result size: 1024 bytes
+-----------------------------------------------------
+Benchmarking bench_pir_answer_524288_d_2_a_32_1KB
+Benchmarking bench_pir_answer_524288_d_2_a_32_1KB: Warming up for 3.0000 s
+Benchmarking bench_pir_decode_524288_d_2_a_32_1KB
+Benchmarking bench_pir_decode_524288_d_2_a_32_1KB: Warming up for 3.0000 s
+Benchmarking bench_pir_query_524288_d_2_a_32_1KB: Analyzing
+bench_pir_query_524288_ time:   [17.845 ms 17.906 ms 18.003 ms]
+                        change: [-1.4435% -1.0419% -0.6241%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+test bench_pir_query_524288_d_2_a_32_1KB ... ok
+bench_pir_decode_1048576_d_2_a_32_1KB query size: 6291456 bytes
+Benchmarking bench_pir_query_1048576_d_2_a_32_1KB: Analyzing
+bench_pir_answer_1048576_d_2_a_32_1KB query size: 6291456 bytes
+bench_pir_query_1048576 time:   [28.323 ms 30.124 ms 32.182 ms]
+                        change: [+0.3001% +4.7627% +9.3932%] (p = 0.04 < 0.05)
+                        Change within noise threshold.
+Found 6 outliers among 25 measurements (24.00%)
+  1 (4.00%) low severe
+  2 (8.00%) low mild
+  1 (4.00%) high mild
+  2 (8.00%) high severe
+test bench_pir_query_1048576_d_2_a_32_1KB ... ok
+Benchmarking bench_pir_decode_524288_d_2_a_32_1KB: Collecting 25 samples in estimated 2531.128247375 s (325 iter
+ations)
+Benchmarking bench_pir_answer_524288_d_2_a_32_1KB: Collecting 25 samples in estimated 2548.396981 s (325 iterati
+ons)
+bench_pir_decode_1048576_d_2_a_32_1KB answer size: 1982464 bytes
+bench_pir_decode_1048576_d_2_a_32_1KB decoded result size: 1024 bytes
+-----------------------------------------------------
+Benchmarking bench_pir_decode_1048576_d_2_a_32_1KB
+Benchmarking bench_pir_decode_1048576_d_2_a_32_1KB: Warming up for 3.0000 s
+bench_pir_answer_1048576_d_2_a_32_1KB answer size: 1982464 bytes
+-----------------------------------------------------
+Benchmarking bench_pir_answer_1048576_d_2_a_32_1KB
+Benchmarking bench_pir_answer_1048576_d_2_a_32_1KB: Warming up for 3.0000 s
+Benchmarking bench_pir_decode_1048576_d_2_a_32_1KB: Collecting 25 samples in estimated 4117.2256541 s (325 itera
+tions)
+Benchmarking bench_pir_answer_1048576_d_2_a_32_1KB: Collecting 25 samples in estimated 4095.278680025 s (325 ite
+rations)
+test bench_pir_answer_524288_d_2_a_32_1KB ... test bench_pir_answer_524288_d_2_a_32_1KB has been running for ove
+r 60 seconds
+test bench_pir_answer_1048576_d_2_a_32_1KB ... test bench_pir_answer_1048576_d_2_a_32_1KB has been running for o
+ver 60 seconds
+test bench_pir_decode_524288_d_2_a_32_1KB ... test bench_pir_decode_524288_d_2_a_32_1KB has been running for ove
+r 60 seconds
+test bench_pir_decode_1048576_d_2_a_32_1KB ... test bench_pir_decode_1048576_d_2_a_32_1KB has been running for o
+ver 60 seconds
+Benchmarking bench_pir_answer_524288_d_2_a_32_1KB: Analyzing
+bench_pir_answer_524288 time:   [1.7255 s 1.7344 s 1.7432 s]
+                        change: [-0.1157% +0.6786% +1.4818%] (p = 0.11 > 0.05)
+                        No change in performance detected.
+Found 2 outliers among 25 measurements (8.00%)
+  2 (8.00%) low mild
+test bench_pir_answer_524288_d_2_a_32_1KB ... ok
+Benchmarking bench_pir_decode_524288_d_2_a_32_1KB: Analyzing
+bench_pir_decode_524288 time:   [3.4457 ms 3.5238 ms 3.6067 ms]
+                        change: [-8.3746% -5.6990% -2.8795%] (p = 0.00 < 0.05)
+                        Performance has improved.
+test bench_pir_decode_524288_d_2_a_32_1KB ... ok
+Benchmarking bench_pir_decode_1048576_d_2_a_32_1KB: Analyzing
+Benchmarking bench_pir_answer_1048576_d_2_a_32_1KB: Analyzing
+bench_pir_decode_104857 time:   [3.4372 ms 3.4912 ms 3.5467 ms]
+                        change: [-8.2206% -5.3341% -1.5933%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 1 outliers among 25 measurements (4.00%)
+  1 (4.00%) high severe
+test bench_pir_decode_1048576_d_2_a_32_1KB ... ok
+bench_pir_answer_104857 time:   [3.4624 s 3.5013 s 3.5386 s]
+                        change: [+3.0825% +3.9952% +5.0003%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 25 measurements (4.00%)
+  1 (4.00%) high mild
+test bench_pir_answer_1048576_d_2_a_32_1KB ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
