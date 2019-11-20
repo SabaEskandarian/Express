@@ -3,8 +3,6 @@ This code accompanies our upcoming paper on metadata-hiding communication. A lin
 
 #### Usage
 ```
-auditor
-
 client [serverAip:4443] [serverBip:4442] [numThreads] [rowDataSize] (optional)throughput
 
 serverA [serverBip:4442] [numThreads] [numCores (set it to 0)] [numRows] [rowDataSize]
