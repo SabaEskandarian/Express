@@ -1,5 +1,5 @@
 
-This code accompanies our upcoming paper on metadata-hiding communication. A link will be added here when the paper is available. 
+This code accompanies our paper "Express: Lowering the Cost of Metadata-hiding Communication with Cryptographic Privacy" (https://arxiv.org/pdf/1911.09215.pdf)
 
 #### Usage
 ```
