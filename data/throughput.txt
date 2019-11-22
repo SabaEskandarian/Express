@@ -1,5 +1,4 @@
 sample commands
-./auditor
 ./serverB 32 0 999 1000
 ./serverA 10.142.0.4:4442 32 0 999 1000
 ./client 10.142.0.3:4443 10.142.0.4:4442 128 1000 throughput

@@ -319,7 +319,10 @@ void genDPF(EVP_CIPHER_CTX *ctx, int domainSize, uint128_t index, int dataSize, 
 }
 
 uint128_t evalDPF(EVP_CIPHER_CTX *ctx, unsigned char* k, uint128_t x, int dataSize, uint8_t* dataShare){
-    
+   //NOTE: if dataSize is not a multiple of 16, the size of dataShare should be
+   //the next multiple of 16 after dataSize or else there is a memory bug.
+   //Thanks to Emma Dauterman for pointing this out.
+
     //dataShare is of size dataSize
     
  	int n = k[0];
